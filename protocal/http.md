@@ -52,6 +52,8 @@
 
 ** 关于缓存的Header **
 
+[参考](https://juejin.im/post/5df82f77518825124953ee81)
+
 [参考](https://www.cnblogs.com/echolun/p/9419517.html)
 
 **关于跨域的Header**

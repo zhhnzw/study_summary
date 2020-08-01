@@ -6,7 +6,7 @@
 *  `for select`
 * `for range channel`会一直迭代到`channel`被 close
 
-贴上我的总结照片
+![channel用法总结](../src/channel.png)
 
 发送逻辑要点:
 
