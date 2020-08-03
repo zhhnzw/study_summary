@@ -24,4 +24,4 @@ socket也提供了对应于无连接的UDP编程操作接口。
 
 ![udp](../src/tcp_bye.png)
 
-[这个总结牛逼](https://mp.weixin.qq.com/s/tH8RFmjrveOmgLvk9hmrkw)
+[参考资料](https://mp.weixin.qq.com/s/tH8RFmjrveOmgLvk9hmrkw)
