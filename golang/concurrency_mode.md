@@ -1,6 +1,6 @@
 ## 并发模型
 
-### 并发和并行的区别?
+### 并发和并行的区别
 并发是**同时处理**多件事情，同一时间可以只做一件，而把其他任务做到一半先暂停，后续被暂停的任务再恢执行，这样来回切换达到并发处理多件事情的目的。并行是**同时做**多件事情，需要多核CPU支持。
 
 ### 进程、线程、协程的区别
@@ -45,3 +45,23 @@
 
 通过[goroutine](/golang/goroutine.md)和[channel](/golang/channel.md)来实现
 
+#### 流水线FAN模型
+
+![FAN-OUT和FAN-IN模式](../src/fan.png)
+
+[参考资料](https://segmentfault.com/a/1190000017182416)
+
+#### 协程池
+
+![FAN-OUT和FAN-IN模式](../src/goroutine_pool.png)
+
+[参考资料](https://segmentfault.com/a/1190000017457158)
+
+#### 合理退出并发协程
+
+* 使用`context`
+* 使用`for-range`,`range`能够感知到`channel`的关闭，当`channel`被close，range就会结束
+* 使用`for-select`和`,ok`，继续读closed的`channel`，`ok`的值会是`false`, 此时置`channel`为`nil`，`select`不会在`nil`的通道上进行等待
+* 使用退出通道退出。定义一个`stopCh`,发送退出信号，监听方式: `case <-stopCh`，这样只需要发送1条消息，每个worker都会收到信号，进而关闭
+
+[参考资料](https://segmentfault.com/a/1190000017251049)
