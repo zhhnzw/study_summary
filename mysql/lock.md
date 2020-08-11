@@ -62,6 +62,8 @@ SELECT * FROM foods WHERE id<>’3’ FOR UPDATE;
 SELECT * FROM foods WHERE id LIKE ‘3’ FOR UPDATE;
 ```
 
+另: `UPDATE`语句与上述特点类似，有索引就是行锁，否则是表锁；`INSERT`语句是行锁
+
 for update的注意点
 
 * for update 仅适用于InnoDB，并且必须开启事务，在begin与commit之间才生效。
