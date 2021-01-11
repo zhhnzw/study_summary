@@ -8,7 +8,8 @@
     * [channel](golang/channel.md)
     * [锁](golang/lock.md)
     * [并发模型](golang/concurrency_mode.md)
-    * [内存泄露](golang/memory_leak.md)
+    * 内存
+        * [内存泄露](golang/memory/memory_leak.md)
     * [参数传递](golang/feature.md)
     * [细节笔记](golang/note.md)
 * [mysql](mysql/README.md)
