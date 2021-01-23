@@ -1,5 +1,19 @@
 ## Kafka
 
+#### ZooKeeper
+
+Q: ZooKeeper是什么？
+
+A: ZooKeeper是一个分布式的协调服务，为分布式应用提供一致性服务的软件。
+
+Q: ZooKeeper如何保证数据一致性？
+
+<img src="../src/zookeeper/data_consistency.png" alt="数据一致性" />
+
+Q: ZooKeeper监听器原理？
+
+### Kafka
+
 基于发布订阅模式
 
 基于消费者主动拉取的模式（kafka所使用的）
