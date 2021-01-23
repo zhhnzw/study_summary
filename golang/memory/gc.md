@@ -4,7 +4,7 @@
 
 垃圾收集器将内存视为一张有向可达图，如下图节点被分为一组根节点和一组堆节点，有向边代表引用关系。不可达节点就是垃圾。
 
-<img src="../../src/garbage_collect_graph.png" alt="有向可达图" style="zoom:50%;" />
+<img src="../../src/golang/memory/garbage_collect_graph.png" alt="有向可达图" style="zoom:50%;" />
 
 ##### 什么是根节点？
 
@@ -16,23 +16,23 @@
 
 有白色、灰色、黑色3个标记表，程序起初将所有对象放入白色表中
 
-<img src="../../src/garbage_3_01.png" alt="三色标记法01" style="zoom:50%;" />
+<img src="../../src/golang/memory/garbage_3_01.png" alt="三色标记法01" style="zoom:50%;" />
 
 遍历根节点，标记为灰色(遍历操作只走一步，即标记出所有的根节点)
 
-<img src="../../src/garbage_3_02.png" alt="三色标记法02" style="zoom:50%;" />
+<img src="../../src/golang/memory/garbage_3_02.png" alt="三色标记法02" style="zoom:50%;" />
 
 遍历灰色标记表，再走一步，将下一级的白色标记为灰色，之前的灰色标记为黑色
 
-<img src="../../src/garbage_3_03.png" alt="三色标记法03" style="zoom:50%;" />
+<img src="../../src/golang/memory/garbage_3_03.png" alt="三色标记法03" style="zoom:50%;" />
 
 重复上一步，直到灰色标记表中无任何对象
 
-<img src="../../src/garbage_3_04.png" alt="三色标记法04" style="zoom:50%;" />
+<img src="../../src/golang/memory/garbage_3_04.png" alt="三色标记法04" style="zoom:50%;" />
 
 收集所有白色对象(垃圾)
 
-<img src="../../src/garbage_3_05.png" alt="三色标记法05" style="zoom:50%;" />
+<img src="../../src/golang/memory/garbage_3_05.png" alt="三色标记法05" style="zoom:50%;" />
 
 以上为一轮GC基本流程，下一轮又会从第一步的白色开始。
 
@@ -40,19 +40,19 @@
 
 考虑以下场景，在下图这个步骤时
 
-<img src="../../src/stw_01.png" alt="stw01" style="zoom:50%;" />
+<img src="../../src/golang/memory/stw_01.png" alt="stw01" style="zoom:50%;" />
 
 对象4创建指针q，指向对象3
 
-<img src="../../src/stw_02.png" alt="stw02" style="zoom:50%;" />
+<img src="../../src/golang/memory/stw_02.png" alt="stw02" style="zoom:50%;" />
 
 与此同时，对象2删除指针p
 
-<img src="../../src/stw_03.png" alt="stw03" style="zoom:50%;" />
+<img src="../../src/golang/memory/stw_03.png" alt="stw03" style="zoom:50%;" />
 
 接下来，按照3色标记法，遍历灰色节点2、7
 
-<img src="../../src/stw_04.png" alt="stw04" style="zoom:50%;" />
+<img src="../../src/golang/memory/stw_04.png" alt="stw04" style="zoom:50%;" />
 
 此时，灰色标记表为空，对白色对象进行垃圾回收，对象3就会被错误的回收掉。
 
