@@ -1,0 +1,42 @@
+{
+    "from": 0,
+    "size": 10,
+    "query": {
+        "bool": {
+            "must": [
+                {"term": {"has_error": true}},
+                {"regexp": {"status": "5.*"}},
+                {"range": {
+                    "log_time": {
+                        "gte": "2020/07/28-15:55:23.965",
+                        "lt": "2020/07/29-15:55:23.965"
+                    }
+                }}
+            ],
+            "must_not": [
+                // {"term": {"has_error": true}}
+            ]
+        }
+    },
+    "collapse": {
+        // 按uid字段折叠
+        "field": "uid"
+    },
+    "agg": {
+        // 这个字段是起的个名称, 查询结果集也会放在这个自定义的名称下面
+        "group_by_uid_error_type": {
+            "terms": {
+                "field": "error_type",
+                "size": 99
+            },
+            "aggs": {
+                "top_score_hits": {
+                    "top_hits": {
+                        // 选定要查询的字段
+                        "_source": ["request_id", "status", "uid", "uri", "log_time"]
+                    }
+                }
+            }
+        }
+    }
+}

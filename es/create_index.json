@@ -1,0 +1,30 @@
+{
+    "mappings": {
+        // 索引名称
+        "openapi_test": {
+            "properties": {
+                "log_time": {
+                    // 时间类型必须创建date类型索引，不然不方便查询
+                    "type": "date",
+                    "format": "yyyy/MM/dd-HH:mm:ss.SSS||yyyy-MM-dd HH:mm:ss||yyyy-MM-dd||epoch_millis"
+                },
+                "status": {
+                    // keyword类型的字段才可以分组查询
+                    "type": "keyword"
+                },
+                "uri": {
+                    "type": "keyword"
+                },
+                "request_id": {
+                    "type": "text"
+                },
+                "remote_ip": {
+                    "type": "ip"
+                },
+                "error_type": {
+                    "type": "keyword"
+                }
+            }
+        }
+    }
+}
