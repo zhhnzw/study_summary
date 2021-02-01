@@ -8,6 +8,14 @@ Kafka依赖于ZooKeeper，ZooKeeper给Kafka提供组成集群的功能，存储�
 
 ### Kafka性能为什么这么高？
 
+* 分布式，分区，可以并发读写
+
+* 顺序写磁盘
+
+  Kafka的producer生产数据，要写入到log文件中，写的过程是一直追加到文件末端，为顺序写。顺序写之所以快，是因为省去了大量磁头寻址的时间。
+
+* 零复制技术
+
 ### Kafka的消费模式
 
 基于消费者主动拉取的模式
@@ -26,7 +34,7 @@ Broker是Kafka集群中单个Kafka服务实例，Kafka集群由多个Broker共�
 
 #### 消息存储方式
 
-Broker在物理上把 topic 分成一个或多个 patition（对应 server.properties 中的 num.partitions=3 配置），每个 patition 物理上对应一个文件夹（该文件夹存储该 patition 的所有消息和索引文件）
+Broker在物理上把 topic 分成一个或多个 partition（对应 server.properties 中的 num.partitions=3 配置），以轮询topic下的多个partition的方式来均匀存储数据，每个 partition 在物理上对应一个文件夹（该文件夹存储该 patition 的所有消息和索引文件）
 
 #### 存储策略
 
@@ -83,8 +91,27 @@ Broker在物理上把 topic 分成一个或多个 patition（对应 server.prope
 
 * RoundRobin: 按消费者组订阅的多个topic所涉及的全部partition，视为一个整体，轮询分配。
 
-  优点: 比较均匀的分配。缺点: 要保证该消费者组里面的所有消费者订阅的主题是一样的。
+  优点: 比较均匀的分配。
+
+  缺点: 要保证该消费者组里面的所有消费者订阅的topic是一样的（如果不一样，RoundRobin仍然会把partition均匀的分配给各个消费者，与期望的"在同一个组内按设定的规则消费指定的不同的topic"不符）。
 
 * Range: 逐个topic分配。假设有A、B这2个topic，A、B都有3个partition (0,1,2)，有一个2个消费成员的消费者组同时订阅了A、B，按范围分配，3除以2不能整除，partition 0和1分配给第一个消费者，partition 2分配给第2个消费者，这样分配的结果是给第一个消费者分配了4个partition，第二个消费者2个partition。
 
   优点: 消费者组里面的消费者可以订阅不同的主题。缺点: 分配不均匀。
+
+案例：假设有Topic1和Topic2，分别都有3个对应的Partition（0，1，2），消费者A、B在同一个消费者组，消费者C在单独的消费者组，A订阅了Topic1，B订阅了Topic1和Topic2，C订阅了Topic1。
+
+![生产者](../src/kafka/consume_example.png)
+
+* 若选用了RoundRobin，Group1的分配中，会把Topic1和Topic2总共6个Partition作为整体轮询分配给A和B，这样就会导致A也消费了Topic2，显然与期望不符。
+* 若选用了Range，先考虑Topic1的分配，Group2只有1个成员，Partition（0，1，2）都分配给C，在Group1中，Partition（0，1）分配给A，Partition（2）分配给B；再考虑Topic2的分配，由于Group1中只有B订阅了它，所以Topic2的Partition（0，1，2）都分配给了B；这样分配的结果是A订阅了2个Partition，B订阅了4个Partition，分配不均匀。
+
+#### offset的维护
+
+由这3个关键字段作为key：consumer group、topic、partition，value即是相应的offset值。
+
+#### 消费者消费消息时，怎么知道消息在哪个Partition呢？
+
+由上文可知，消费者组按分区分配策略来消费，分配时确定了消费者消费哪些Partition。
+
+当消费者组成员变动时，也会重新分配Partition，消费者从kafka取回该Partition相应的offset接着消费（由上文的3个关键字段确定了唯一的offset）。
