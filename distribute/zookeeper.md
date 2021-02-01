@@ -43,9 +43,3 @@ ZooKeeper的节点有Leader、Follower、Observer三种。
 4. ZooKeeper服务器监听到数据有变化，就会将这个消息发送给监听列表中的客户端的**listener**线程
 
 5. 客户端的**listener**线程触发`Process()`回调方法。
-
-### ZooKeeper分布式锁
-
-ZooKeeper的节点类型:
-
-* 临时顺序节点
