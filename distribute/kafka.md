@@ -16,18 +16,6 @@ Kafka依赖于ZooKeeper，ZooKeeper给Kafka提供组成集群的功能，存储�
 
 * 零复制技术
 
-### Kafka的消费模式
-
-基于消费者主动拉取的模式
-
-优点：消费者可以自己来控制消费速率(如果是生产者推送模式，则是由生产者控制速率，则有可能出现推送速率过高，消费者消费能力不足，从而产生异常)。
-
-缺点：不管有没有消息，消费者都会对服务器进行长轮询，当没有新消息时，这种轮询就浪费了服务器资源。
-
-#### 对基本的消费者主动拉取模式的优化
-
-针对于以上方案的长轮询缺点，采用服务端主动推送和客户端拉取相结合的方案，即：由服务端主动向客户端推送新消息到来的通知，然后由客户端收到通知后自己主动拉取实际数据。这个方案也有缺点：当客户端宕机，服务端也就通知不到它了。
-
 ### Broker
 
 Broker是Kafka集群中单个Kafka服务实例，Kafka集群由多个Broker共同组成集群。
@@ -44,25 +32,7 @@ Broker在物理上把 topic 分成一个或多个 partition（对应 server.prop
 
 需要注意的是，因为 Kafka 读取特定消息的时间复杂度为 O(1)，即与文件大小无关，所以这里删除过期文件与提高 Kafka 性能无关。
 
-### 主题（Topic）与分区（Partition）
-
-消息发送时都被发送到一个 topic，topic的本质就是一个目录，而 topic 是由一些 Partition Logs(分区日志, 也即kafka的消息数据)组成。
-
-每个Partition中的消息都是有序的，生产的消息被不断追加到相应的 Partition Logs，其中的每一个消息都被赋予了一个唯一的 offset 值。
-
-#### 分区的原因
-
-* 方便在集群中扩展，每个 Partition 可以通过调整以适应它所在的机器，而一个 topic
-又可以有多个 Partition 组成，因此整个集群就可以适应任意大小的数据了；
-* 可以提高并发，因为可以以 Partition 为单位读写了。
-
-#### 对消息数据分区的策略
-
-1. 指定了 patition，则直接使用；
-2. 未指定 patition 但指定 key，通过对 key 的 value 进行 hash 出一个 patition；
-3. patition 和 key 都未指定，使用轮询选出一个 patition。
-
-### 副本（Replication）
+#### 副本（Replication）
 
 在集群中Topic是有分区的，Partition也有单独的Leader和Follower，只能连Leader生产和消费，Follower仅提供备份作用。
 
@@ -79,7 +49,88 @@ Broker在物理上把 topic 分成一个或多个 partition（对应 server.prop
 5. leader 收到所有 ISR 中的 replication 的 ACK 后，增加 HW（high watermark，最后 commit 
 的 offset）并向 producer 发送 ACK
 
+#### 主题（Topic）与分区（Partition）
+
+消息发送时都被发送到某个 topic，topic的本质就是一个目录，而 topic 是由一些 Partition Logs(分区日志, 也即kafka的消息数据)组成。
+
+每个Partition中的消息都是有序的，生产的消息被不断追加到相应的 Partition Logs，其中的每一个消息都被赋予了一个唯一的 offset 值。
+
+#### 分区的原因
+
+* 方便在集群中扩展，每个 Partition 可以通过调整以适应它所在的机器，而一个 topic
+  又可以有多个 Partition 组成，因此整个集群就可以适应任意大小的数据了；
+* 可以提高并发，因为可以以 Partition 为单位读写了。
+
+#### 对消息数据分区的策略
+
+1. 指定了 patition，则直接使用；
+2. 未指定 patition 但指定 key，通过对 key 的 value 进行 hash 出一个 patition；
+3. patition 和 key 都未指定，使用轮询选出一个 patition。
+
+#### 数据可靠性保证
+
+为保证producer发送的数据，能可靠的发送到指定的topic，topic的每个Partition收到producer发送的数据后，都需要向producer发送**ACK**(acknowledgement确认收到)，如果producer没收到ACK，则重新发送数据。
+
+##### 数据同步策略
+
+kafka集群的数据同步策略没有选用半数机制。
+
+Leader维护了一个动态的 in-sync-replica set（**ISR**），意为和Leader保持同步的Follower集合（动态选出优质的Follower）。当ISR中的Follower完成数据同步之后，就会给Leader发送ACK，如果Follower长时间未向Leader同步数据，则该Follower将被提出ISR，该时间阈值由`replica.lag.time.max.ms`参数设定。Leader发生故障之后，就会从ISR中选举新的Leader。
+
+##### ACK应答机制
+
+对于某些不太重要的数据，对数据的可靠性要求不是很高，能够容忍数据的少量丢失，就没必要等ISR中的Follower全部接收成功，所以kafka为用户提供了三种可靠性级别，**acks**参数配置：
+
+| acks  |  语义  | 含义                                                         |
+| -- | --- | -------------------------------------------------------- |
+| 0       | At Most Once | producer不等待broker的ACK<br>延迟最低，可能**丢失数据**      |
+| 1       |  | producer等待broker的ACK<br/>Partition的Leader落盘成功后返回ACK<br>如果在Follower同步成功之前Leader发生故障，也会**丢失数据** |
+| -1(all) | At Least Once | producer等待broker的ACK<br/>Partition的Leader和ISR中的Follower全部落盘成功后才返回ACK<br/>如果在Follower同步完成后，broker发送ACK之前，Leader发生故障，则会**数据重复** |
+
+##### 数据一致性
+
+有broker发生故障时可能会导致数据一致性问题
+
+![数据一致性](../src/kafka/hw.png)
+
+**LEO**（Log End Offset）: 该副本最大的offset
+
+**HW**（High Watermark）: 所有副本中最小的LEO
+
+* Follower故障：该Follower会被临时踢出  ISR，待该  follower 恢复后，follower 会读取本地磁盘 
+  记录的上次的 HW，并将 log 文件高于 HW 的部分截取掉，从 HW 开始向 leader 进行同步。 
+  等该 follower 的 LEO 大于等于该 Partition 的  HW，即   follower 追上  leader 之后，就可以重 新加入 ISR 了。
+* Leader故障：leader 发生故障之后，会从  ISR 中选出一个新的  leader，之后，为保证多个副本之间的数据一致性，其余的 follower 会先将各自的 log 文件高于 HW 的部分截掉，然后从新的  leader 同步数据。
+
+注：**HW**机制保证的是副本之间的数据一致性，数据的重复和丢失问题由**ACK**保证
+
+##### 精准一次性（Exactly Once）
+
+At Least Once + 幂等性   = Exactly Once
+
+要启用幂等性，只需要将 Producer 的参数中`enable.idompotence`设置为 true 即可。
+
+开启幂等性的 Producer 在 
+初始化的时候会被分配一个 PID（Producer ID），发往同一 Partition 的消息会附带 Sequence Number。而 
+Broker 端会对<PID, Partition, SeqNumber>做缓存，当具有相同主键的消息提交时，Broker 只 会持久化一条。
+
+但是 PID 重启就会变化，同时不同的 Partition 也具有不同主键，所以幂等性无法保证跨分区跨会话的 Exactly Once。跨分区跨会话的 Exactly Once见下文Kafka事务。
+
 ### 消费者
+
+#### Kafka的消费模式
+
+基于消费者主动拉取的模式
+
+优点：消费者可以自己来控制消费速率(如果是生产者推送模式，则是由生产者控制速率，则有可能出现推送速率过高，消费者消费能力不足，从而产生异常)。
+
+缺点：不管有没有消息，消费者都会对服务器进行长轮询，当没有新消息时，这种轮询就浪费了服务器资源。
+
+##### 对基本的消费者主动拉取模式的优化
+
+针对于以上方案的长轮询缺点，采用服务端主动推送和客户端拉取相结合的方案，即：由服务端主动向客户端推送新消息到来的通知，然后由客户端收到通知后自己主动拉取实际数据。这个方案也有缺点：当客户端宕机，服务端也就通知不到它了。
+
+#### 消费者与分区
 
 同一个分区下的某个topic是不能被同一个消费者组里的多个成员同时消费的，即一个分区下的某个topic只能被同一个消费者组里的某一个成员消费。
 
@@ -89,15 +140,17 @@ Broker在物理上把 topic 分成一个或多个 partition（对应 server.prop
 
 一个consumer group中有多个consumer，一个topic有多个partition，所以必然会涉及到partition的分配问题，即确定哪个partition由哪个consumer来消费。消费者组的成员有增加删除的时候会触发策略重新分配。
 
-* RoundRobin: 按消费者组订阅的多个topic所涉及的全部partition，视为一个整体，轮询分配。
+* RoundRobin: 按消费者组所涉及的全部Partition，视为一个整体（无视Topic来划分），轮询分配。
 
   优点: 比较均匀的分配。
 
-  缺点: 要保证该消费者组里面的所有消费者订阅的topic是一样的（如果不一样，RoundRobin仍然会把partition均匀的分配给各个消费者，与期望的"在同一个组内按设定的规则消费指定的不同的topic"不符）。
+  缺点: 要保证该消费者组里面的所有消费者订阅的topic是一样的。
 
-* Range: 逐个topic分配。假设有A、B这2个topic，A、B都有3个partition (0,1,2)，有一个2个消费成员的消费者组同时订阅了A、B，按范围分配，3除以2不能整除，partition 0和1分配给第一个消费者，partition 2分配给第2个消费者，这样分配的结果是给第一个消费者分配了4个partition，第二个消费者2个partition。
+* Range: 逐个Topic分配Partition，同一个Topic按Partition序号的范围尽量均匀分配（若不能整除，就给消费者组里排在前面的消费者多分1个Partition）。
 
-  优点: 消费者组里面的消费者可以订阅不同的主题。缺点: 分配不均匀。
+  优点: 消费者组里面的消费者可以订阅不同的主题。
+  
+  缺点: 分配不均匀。
 
 案例：假设有Topic1和Topic2，分别都有3个对应的Partition（0，1，2），消费者A、B在同一个消费者组，消费者C在单独的消费者组，A订阅了Topic1，B订阅了Topic1和Topic2，C订阅了Topic1。
 
@@ -115,3 +168,9 @@ Broker在物理上把 topic 分成一个或多个 partition（对应 server.prop
 由上文可知，消费者组按分区分配策略来消费，分配时确定了消费者消费哪些Partition。
 
 当消费者组成员变动时，也会重新分配Partition，消费者从kafka取回该Partition相应的offset接着消费（由上文的3个关键字段确定了唯一的offset）。
+
+### Kafka事务
+
+kafka支持原子操作，在一个事务中的一系列操作，包括生产者生产消息和消费者提交偏移量，同时成功或者失败。
+
+精准一次性，幂等性是如何实现的？seq能手动控制吗？
