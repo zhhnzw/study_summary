@@ -18,7 +18,6 @@
 * [mysql](mysql/README.md)
     * [基础](mysql/basis/README.md)
         * [join](mysql/basis/join.md)
-    * [存储优化](mysql/save_optimization.md)
     * [查询优化](mysql/query_optimization.md)
     * [锁](mysql/lock.md)
     * [其他](mysql/other.md)
