@@ -41,9 +41,13 @@
 
 * 如果不是按照索引的最左列开始查找，则无法使用索引。
 * 不能跳过索引中的列。如：上述索引下查找姓为Smith并且在某个特定日期出生的人，如果不指定名(first_name)，则MySQL只能使用索引的第一列。
-* 如果查询中有某个列的范围查找，则其右边所有列都无法使用索引优化查找。例如`WHERE last_name='Smith' AND first_name LIKE 'J%' AND birthday='1976-12-23'`, 这个查询只能使用索引的前两列。
+* 不能使用索引中范围查找条件右边的列，例如`WHERE name='Smith' AND age > 22 AND position='manager'`, 这个查询只能使用索引的前两列。
+* MySQL在使用不等于（`!=`或者`<>`）的时候无法使用索引会导致全表扫描。
+* `is null`或`is not null`查询语句也无法使用索引。
+* `LIKE`的通配符放在左边（比如`'%abc'`）也无法使用索引（%放右边可以），若业务场景中左边的%就是要写上，可利用**覆盖索引**来避免全表扫描。
+* 在索引列上做的计算（如`WHERE id-1=9 `）、函数调用、自动或手动的类型转换，会导致索引失效而转向全表扫描。对于`VARCHAR`类型的字段，查询时若不加单引号（比如 `WHERE name=2000`），索引会失效，因为MySQL会自动对这个int类型做类型转换换成string。
 
-注：由上述限制可知，在优化性能的时候，可能需要使用相同的列但顺序不同的索引来满足不同类型的查询需求。
+注：在优化查询性能的时候，可能需要使用相同的列但顺序不同的索引来满足不同类型的查询需求。
 
 #### 覆盖索引
 
@@ -74,13 +78,11 @@
 | rows          | 为了找到所需的行而需要读取的行数，估算值，不精确。通过把所有rows列值相乘，可粗略估算整个查询会检查的行数。 |
 | Extra         | 非常重要的额外信息，如：<br>Using filesort：无法利用索引完成的排序操作称之为**文件排序**（数据量大时，效率低）<br>Using temporay：在对查询结果排序时使用了临时表（效率很低）。常见于排序 order by 和分组查询 group by。<br/>Using index：表示相应的 select 操作中使用了**覆盖索引**，避免访问了表的数据行（效率高）。 |
 
-### 索引优化
+### 查询优化
 
-范围扫描以后的索引会导致失效
+#### 两表关联优化案例
 
-### 两表关联优化案例
-
-#### 建表
+##### 建表
 
 ```sql
 CREATE TABLE IF NOT EXISTS `class` ( 
@@ -135,7 +137,7 @@ INSERT INTO book(card) VALUES(FLOOR(1 + (RAND() * 20)));
 INSERT INTO book(card) VALUES(FLOOR(1 + (RAND() * 20)));                                          
 ```
 
-#### 分析
+##### 分析
 
 ```sql
 EXPLAIN SELECT * FROM class LEFT JOIN book ON class.card = book.card;
@@ -161,9 +163,9 @@ ALTER TABLE class ADD INDEX idx_card(`card`);
 
 注: `INNER JOIN`时，索引在左、右表随便存在一个就可以，MySQL会自行选择。
 
-### 三表关联优化案例
+#### 三表关联优化案例
 
-### 建表
+##### 建表
 
 基于上例的两表，再加一个表
 
@@ -194,7 +196,7 @@ INSERT INTO phone(card) VALUES(FLOOR(1 + (RAND() * 20)));
 INSERT INTO phone(card) VALUES(FLOOR(1 + (RAND() * 20)));
 INSERT INTO phone(card) VALUES(FLOOR(1 + (RAND() * 20)));
 ```
-### 优化
+##### 优化
 ```sql
 EXPLAIN SELECT * FROM class LEFT JOIN book ON class.card = book.card LEFT JOIN phone ON book.card=phone.card;
 # 建立索引
@@ -204,6 +206,50 @@ ALTER TABLE phone ADD INDEX idx_card(`card`);
 
 <img src="../src/mysql/query/demo00_explain_02.png" alt="案例00_explain_01" style="zoom:50%;" />
 
-有2个`type`列是`ref`，相应的`Extra`列是`Using index`，即**覆盖索引**，效率高。
+由上可知，有2个`type`列是`ref`，相应的`Extra`列是`Using index`，即**覆盖索引**，效率高。
 
 结论：多表关联时，分而治之，逐个优化即可。
+
+#### 范围查询
+
+假设 index(a,b,c)
+
+`WHERE a=3 AND b > 'k' AND c=4`，由最左前缀原则可知，索引的 a，b两列生效，c列在范围查找之后，**c列不生效**。
+
+`WHERE a=3 AND b LIKE '%kk' AND c=4`，通配符在左边，b列失效。
+
+`WHERE a=3 AND b LIKE 'kk%' AND c=4`，通配符在右边，**b列生效，c列也生效**。
+
+`Like '%kk'`和比较运算符`>`的区别：这两者的`EXPLAIN`的`type`列分别是`ref`和`range`，`ref`之后的索引列仍然可生效，而`range`之后的索引列不再生效。
+
+#### 排序（ORDER BY）
+
+假设 index(a,b,c)
+
+`ORDER BY`能使用索引的情况：
+
+* `ORDER BY a DESC, b DESC, c DESC`
+* `WHERE a = const ORDER BY b,c`
+* `WHERE a = const AND b = const ORDER BY c`
+* `WHERE a = const AND b > const ORDER BY b,c`
+
+`ORDER BY`不能使用索引，`EXPLAIN`的`type`列会出现`Using filesort`的情况：
+
+* `ORDER BY a ASC, b DESC, c DESC`，有的升序有的降序。
+* `WHERE d = const ORDER BY b,c`，最左前缀原则，丢失了最左边的a索引。
+* `WHERE a = const ORDER BY c`，最左前缀原则，不能跳过索引中的列。
+* `WHERE a = const AND b > const ORDER BY c`，b列是范围查询，因此b列右侧的c列索引不再生效。
+
+### 慢查询语句
+
+它用来记录在MySQL中响应时间超过阀值的语句。
+
+MySQL 数据库默认没有开启慢查询日志，如果不是调优需要的话，也不建议启动该参数。
+
+#### 操作步骤
+
+1. 连接MySQL客户端，`SHOW VARIBLES LIKE '%slow_query_log%';`查询慢查询日志是否开启。
+2. `set global sow_query_log=1;`开启慢查询日志。
+3. `SHOW VARIABLES LIKE 'long_query_time%';`查看慢查询设定的阈值，单位秒。
+4. `set long_query_time=3`设定慢查询阈值，单位秒。
+5. 查看慢查询日志文件。
