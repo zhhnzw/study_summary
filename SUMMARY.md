@@ -20,6 +20,7 @@
         * [join](mysql/basis/join.md)
     * [查询优化](mysql/query_optimization.md)
     * [锁](mysql/lock.md)
+    * [主从复制](mysql/replica_set.md)
     * [其他](mysql/other.md)
 * [分布式](distribute/README.md) 
     * [redis](distribute/redis/README.md)
