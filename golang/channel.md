@@ -6,12 +6,12 @@
 *  `for select`
 * `for range channel`会一直迭代到`channel`被 close
 
-![channel用法总结](../src/channel.png)
+![channel用法总结](../src/golang/channel.png)
 
 发送逻辑要点:
 
 - 如果channel已经关闭，会抛出panic: `send on closed channel`
-- 当存在等待的接收者时，通过 [`runtime.send`](https://github.com/golang/go/blob/e35876ec6591768edace6c6f3b12646899fd1b11/src/runtime/chan.go#L270) 直接将数据发送给阻塞的接收者；
+- 当存在等待的接收者时，会直接将数据发送给阻塞的接收者；
 - 当缓冲区存在空余空间时，将发送的数据写入 Channel 的缓冲区；
 - 当不存在缓冲区或者缓冲区已满时，等待其他 Goroutine 从 Channel 接收数据；
 
@@ -28,9 +28,13 @@ A: 说明所编写的程序有设计bug。channel关闭原则:
 * 只要坚持这个原则，就可以确保向一个已经关闭的channel发送数据的情况不可能发生
 
 Q: 退出程序时, 如何防止channel没有消费完？
-1. 多个消费者，一个生产者。直接让生产者关闭channel即可
-2. 多个生产者，一个消费者。结合具体情况，由生产者同时监听一个停止生产数据的channel作为return的信号
-3. 多个生产者，多个消费者。设计一个停止生产的信号和一个生产者已经停止的信号，生产者监听停止生产的信号，在return之前发送已经停止的信号，额外的专门用于关闭数据channel的协程监听和搜集所有生产者已经停止生产的信号，搜集完整则调用close
+1. 多个消费者，一个生产者。直接让生产者关闭channel即可。
+
+2. 多个生产者，一个消费者。由消费者通过channel发送停止生产数据的信号给生产者，生产者在生产数据的同时监听此信号channel，收到信号return即可。值得注意的是，这个例子中生产端和接受端都没有关闭消息数据的channel，channel在没有任何goroutine引用的时候会自行关闭，而不需要显示进行关闭。
+
+3. 多个生产者，多个消费者。多个消费者成了信号channel的多个生产者（上一种情况是单一的），因此不可以在信号channel消费端（也即数据channel生产端）关闭此信号channel，这违背了关闭原则，多个消费者发送信号有先后，信号channel被关闭时，其他消费者继续发送信号将引发panic。解决方案是引入一个额外的协调者来关闭附加的退出信号channel。
+
+   设计一个停止生产的信号和一个生产者已经停止的信号，生产者监听停止生产的信号，在return之前发送已经停止的信号，额外的协调者goroutine用于搜集生产者已经停止生产的信号，搜集完整则调用close。
 
 Q: 生产者把消息发送完立刻调用close, 不等消费者消费完，会丢数据吗？
 
