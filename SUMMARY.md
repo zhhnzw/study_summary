@@ -6,8 +6,8 @@
     * [slice](golang/slice.md)
     * [interface](golang/interface.md)
     * [channel](golang/channel.md)
-    * [锁](golang/lock.md)
     * [并发模型](golang/concurrency_mode.md)
+    * [锁](golang/lock.md)
     * 内存
         * [虚拟内存](golang/memory/virtual_memory.md)
         * [栈区堆区](golang/memory/stack_heap.md)
