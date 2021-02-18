@@ -9,28 +9,40 @@ Kafka依赖于ZooKeeper，ZooKeeper给Kafka提供组成集群的功能，存储�
 ### Kafka性能为什么这么高？
 
 * 分布式，分区，可以并发读写
-
 * 顺序写磁盘
-
-  Kafka的producer生产数据，要写入到log文件中，写的过程是一直追加到文件末端，为顺序写。顺序写之所以快，是因为省去了大量磁头寻址的时间。
-
+  Kafka的producer生产数据，要写入到log文件中，写的过程是一直追加到文件末端，顺序写。顺序写之所以快，是因为省去了大量磁头寻址的时间。
 * 零复制技术
 
 ### Broker
 
 Broker是Kafka集群中单个Kafka服务实例，Kafka集群由多个Broker共同组成集群。
 
+### 主题（Topic）与分区（Partition）
+
+消息发送时都被发送到某个 Topic，Topic的本质就是一个目录，而 topic 是由一些 Partition Logs(分区日志, 也即Kafka的消息数据)组成。
+
+每个Partition中的消息都是有序的，生产的消息被不断追加到相应的 Partition Logs，其中的每一个消息都被赋予了一个唯一的 offset 值。
+
 #### 消息存储方式
 
-Broker在物理上把 topic 分成一个或多个 partition（对应 server.properties 中的 num.partitions=3 配置），以轮询topic下的多个partition的方式来均匀存储数据，每个 partition 在物理上对应一个文件夹（该文件夹存储该 patition 的所有消息和索引文件）
+Broker在物理上把 Topic 分成一个或多个 Partition（对应 server.properties 中的 num.partitions=3 配置），以轮询Topic下的多个Partition的方式来均匀存储数据，每个 Partition 在物理上对应一个文件夹（该文件夹存储该 Patition 的所有消息和索引文件）。
 
-#### 存储策略
+无论消息是否被消费，Kafka 都会保留所有消息。有两种策略可以删除旧数据：
 
-无论消息是否被消费，kafka 都会保留所有消息。有两种策略可以删除旧数据：
 * 基于时间：log.retention.hours=168
 * 基于大小：log.retention.bytes=1073741824
 
 需要注意的是，因为 Kafka 读取特定消息的时间复杂度为 O(1)，即与文件大小无关，所以这里删除过期文件与提高 Kafka 性能无关。
+
+#### 分区的作用
+
+一个Topic的数据可以存放在多个Broker，一个Broker上可以存放多个Partition。这样，producer可以将数据发送给多个Broker上的多个Partition，consumer也可以并行从多个Broker上的多个Partition上读数据。实现了水平扩展，提高了并发能力。
+
+#### 对消息数据分区的策略
+
+1. 指定了 Partition，则直接使用；
+2. 未指定 Partition 但指定 key，通过对 key 的 value 进行 hash 出一个 Partition；
+3. Partition 和 key 都未指定，使用轮询选出一个 Partition。
 
 #### 副本（Replication）
 
@@ -46,38 +58,20 @@ Broker在物理上把 topic 分成一个或多个 partition（对应 server.prop
 2. producer 将消息发送给该 leader
 3. leader 将消息写入本地 log
 4. followers 从 leader pull 消息，写入本地 log 后向 leader 发送 ACK
-5. leader 收到所有 ISR 中的 replication 的 ACK 后，增加 HW（high watermark，最后 commit 
+5. leader 收到所有 [ISR](#isr) 中的 replication 的 ACK 后，增加 HW（high watermark，最后 commit 
 的 offset）并向 producer 发送 ACK
-
-#### 主题（Topic）与分区（Partition）
-
-消息发送时都被发送到某个 topic，topic的本质就是一个目录，而 topic 是由一些 Partition Logs(分区日志, 也即kafka的消息数据)组成。
-
-每个Partition中的消息都是有序的，生产的消息被不断追加到相应的 Partition Logs，其中的每一个消息都被赋予了一个唯一的 offset 值。
-
-#### 分区的原因
-
-* 方便在集群中扩展，每个 Partition 可以通过调整以适应它所在的机器，而一个 topic
-  又可以有多个 Partition 组成，因此整个集群就可以适应任意大小的数据了；
-* 可以提高并发，因为可以以 Partition 为单位读写了。
-
-#### 对消息数据分区的策略
-
-1. 指定了 patition，则直接使用；
-2. 未指定 patition 但指定 key，通过对 key 的 value 进行 hash 出一个 patition；
-3. patition 和 key 都未指定，使用轮询选出一个 patition。
 
 #### 数据可靠性保证
 
 为保证producer发送的数据，能可靠的发送到指定的topic，topic的每个Partition收到producer发送的数据后，都需要向producer发送**ACK**(acknowledgement确认收到)，如果producer没收到ACK，则重新发送数据。
 
-##### 数据同步策略
+#### 数据同步策略
 
 kafka集群的数据同步策略没有选用半数机制。
 
-Leader维护了一个动态的 in-sync-replica set（**ISR**），意为和Leader保持同步的Follower集合（动态选出优质的Follower）。当ISR中的Follower完成数据同步之后，就会给Leader发送ACK，如果Follower长时间未向Leader同步数据，则该Follower将被提出ISR，该时间阈值由`replica.lag.time.max.ms`参数设定。Leader发生故障之后，就会从ISR中选举新的Leader。
+Leader维护了一个动态的 in-sync-replica set（<span id="isr">**ISR**</span>），意为和Leader保持同步的Follower集合（动态选出优质的Follower）。当ISR中的Follower完成数据同步之后，就会给Leader发送ACK，如果Follower长时间未向Leader同步数据，则该Follower将被提出ISR，该时间阈值由`replica.lag.time.max.ms`参数设定。Leader发生故障之后，就会从ISR中选举新的Leader。
 
-##### ACK应答机制
+#### ACK应答机制
 
 对于某些不太重要的数据，对数据的可靠性要求不是很高，能够容忍数据的少量丢失，就没必要等ISR中的Follower全部接收成功，所以kafka为用户提供了三种可靠性级别，**acks**参数配置：
 
@@ -87,7 +81,7 @@ Leader维护了一个动态的 in-sync-replica set（**ISR**），意为和Leade
 | 1       |  | producer等待broker的ACK<br/>Partition的Leader落盘成功后返回ACK<br>如果在Follower同步成功之前Leader发生故障，也会**丢失数据** |
 | -1(all) | At Least Once | producer等待broker的ACK<br/>Partition的Leader和ISR中的Follower全部落盘成功后才返回ACK<br/>如果在Follower同步完成后，broker发送ACK之前，Leader发生故障，则会**数据重复** |
 
-##### 数据一致性
+#### 数据一致性
 
 有broker发生故障时可能会导致数据一致性问题
 
@@ -104,17 +98,15 @@ Leader维护了一个动态的 in-sync-replica set（**ISR**），意为和Leade
 
 注：**HW**机制保证的是副本之间的数据一致性，数据的重复和丢失问题由**ACK**保证
 
-##### 精准一次性（Exactly Once）
+#### 精准一次性（Exactly Once）
 
 At Least Once + 幂等性   = Exactly Once
 
 要启用幂等性，只需要将 Producer 的参数中`enable.idompotence`设置为 true 即可。
 
-开启幂等性的 Producer 在 
-初始化的时候会被分配一个 PID（Producer ID），发往同一 Partition 的消息会附带 Sequence Number。而 
-Broker 端会对<PID, Partition, SeqNumber>做缓存，当具有相同主键的消息提交时，Broker 只 会持久化一条。
+开启幂等性的 Producer 在 初始化的时候会被分配一个 PID（Producer ID），发往同一 Partition 的消息会附带 Sequence Number。而 Broker 端会对<PID, Partition, SeqNumber>做缓存，当具有相同主键的消息提交时，Broker 只 会持久化一条。
 
-但是 PID 重启就会变化，同时不同的 Partition 也具有不同主键，所以幂等性无法保证跨分区跨会话的 Exactly Once。跨分区跨会话的 Exactly Once见下文Kafka事务。
+但是 PID 重启就会变化，同时不同的 Partition 也具有不同主键，所以幂等性无法保证跨分区跨会话的 Exactly Once。跨分区跨会话的 Exactly Once见下文[Kafka事务](#transaction)。
 
 ### 消费者
 
@@ -141,15 +133,11 @@ Broker 端会对<PID, Partition, SeqNumber>做缓存，当具有相同主键的�
 一个consumer group中有多个consumer，一个topic有多个partition，所以必然会涉及到partition的分配问题，即确定哪个partition由哪个consumer来消费。消费者组的成员有增加删除的时候会触发策略重新分配。
 
 * RoundRobin: 按消费者组所涉及的全部Partition，视为一个整体（无视Topic来划分），轮询分配。
-
   优点: 比较均匀的分配。
-
   缺点: 要保证该消费者组里面的所有消费者订阅的topic是一样的。
-
-* Range: 逐个Topic分配Partition，同一个Topic按Partition序号的范围尽量均匀分配（若不能整除，就给消费者组里排在前面的消费者多分1个Partition）。
-
-  优点: 消费者组里面的消费者可以订阅不同的主题。
   
+* Range: 逐个Topic分配Partition，同一个Topic按Partition序号的范围尽量均匀分配（若不能整除，就给消费者组里排在前面的消费者多分1个Partition）。
+  优点: 消费者组里面的消费者可以订阅不同的主题。
   缺点: 分配不均匀。
 
 案例：假设有Topic1和Topic2，分别都有3个对应的Partition（0，1，2），消费者A、B在同一个消费者组，消费者C在单独的消费者组，A订阅了Topic1，B订阅了Topic1和Topic2，C订阅了Topic1。
@@ -163,14 +151,35 @@ Broker 端会对<PID, Partition, SeqNumber>做缓存，当具有相同主键的�
 
 由这3个关键字段作为key：consumer group、topic、partition，value即是相应的offset值。
 
+#### offset的提交
+
+* 自动提交：若设置offset自动提交的延时太短，程序对于当前消息对应的任务还没执行完，offset就被提交了，那么程序在重启时，理应重新消费没执行完的任务，而此时没执行完的任务已被提交，造成**数据丢失**；若设置offset自动提交的延时太长，程序已经跑到最新的任务了，而offset跟不上，此时程序重启，则会造成**重复消费**。
+
+* 手动提交：若某条消息对应的任务执行完，刚要提交offset时，重启程序，也会造成**重复消费**；
+
+* 自定义存储offset：
+  典型场景：从kafka消费数据出来最终要落地到MySQL时，选用MySQL作为kafka的offset自定义存储工具，这时offset的操作可与业务代码作为整个MySQL事务来操作。
+#### 拦截器（interceptor）
+
+实现某个功能的拦截器实例，client添加这个拦截器即可。支持以多个拦截器按序作用于同一条消息形成一个拦截链(interceptor chain)。
+
+拦截器支持4个拦截功能函数：
+
+* configure：获取配置信息和初始化数据时调用。
+* onSend：在消息被序列化以及计算分区前调用该方法。
+* onAcknowlegement：在消息成功发送到 Kafka Broker 之后，或者发送失败时调用。
+* close：关闭 interceptor，主要用于执行一些资源清理工作。
+
+典型应用场景：实现一个双 interceptor 组成的拦截链。第一个 interceptor 在消息发送前将时间戳信息加到消息 value 的最前部（实现自定义的onSend()即可）；第二个 interceptor 统计成功和失败发送消息数，程序运行结束时打印出来（当然，这只是举一个例子，这个例子的2个功能用单一的interceptor实现也可以）。
+
+注：上述第二个interceptor的功能需要实现自定义拦截器的close()，在client调用close()关闭资源时才会触发拦截器实现的close()，client不显式调用就不会触发。
+
 #### 消费者消费消息时，怎么知道消息在哪个Partition呢？
 
 由上文可知，消费者组按分区分配策略来消费，分配时确定了消费者消费哪些Partition。
 
 当消费者组成员变动时，也会重新分配Partition，消费者从kafka取回该Partition相应的offset接着消费（由上文的3个关键字段确定了唯一的offset）。
 
-### Kafka事务
+### <span id="transaction">Kafka事务<span>
 
 kafka支持原子操作，在一个事务中的一系列操作，包括生产者生产消息和消费者提交偏移量，同时成功或者失败。
-
-精准一次性，幂等性是如何实现的？seq能手动控制吗？
