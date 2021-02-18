@@ -61,7 +61,7 @@
 * P — 表示处理器，它可以被看做运行在线程上的本地调度器
 * M — 表示操作系统的线程，它由操作系统的调度器调度和管理
 
-####调度器的设计策略
+#### 调度器的设计策略
 
 * 复用线程
     - work stealing
@@ -96,3 +96,8 @@ Goroutine调度器和OS调度器是通过M结合起来的，每个M都代表了1
 4. **M**：线程想运行任务就得获取P，从P的本地队列获取G，P队列为空时，M也会尝试从全局队列**拿**一批G放到P的本地队列，或从其他P的本地队列**偷**一半放到自己P的本地队列。M运行G，G执行之后，M会从P获取下一个G，不断重复下去。
 
 [参考资料](https://lessisbetter.site/subject/)
+
+### goroutine的使用注意事项
+
+子goroutine的panic会引起整个进程crash, 所以需要在goroutine函数写上defer recover, 注意recover只在defer语句生效
+

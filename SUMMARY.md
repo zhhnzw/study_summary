@@ -14,7 +14,6 @@
         * [垃圾回收](golang/memory/gc.md)
         * [内存泄露](golang/memory/memory_leak.md)
     * [参数传递](golang/feature.md)
-    * [细节笔记](golang/note.md)
 * [mysql](mysql/README.md)
     * [基础](mysql/basis/README.md)
         * [join](mysql/basis/join.md)
