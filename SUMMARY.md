@@ -8,12 +8,14 @@
     * [channel](golang/channel.md)
     * [并发模型](golang/concurrency_mode.md)
     * [锁](golang/lock.md)
+    * [参数传递](golang/feature.md)
     * 内存
         * [虚拟内存](golang/memory/virtual_memory.md)
         * [栈区堆区](golang/memory/stack_heap.md)
         * [垃圾回收](golang/memory/gc.md)
         * [内存泄露](golang/memory/memory_leak.md)
-    * [参数传递](golang/feature.md)
+    * 库
+        * [gRPC](golang/library/gRPC.md)
 * [mysql](mysql/README.md)
     * [基础](mysql/basis/README.md)
         * [join](mysql/basis/join.md)
