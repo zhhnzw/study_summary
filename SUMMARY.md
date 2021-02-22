@@ -16,6 +16,7 @@
         * [内存泄露](golang/memory/memory_leak.md)
     * 库
         * [gRPC](golang/library/gRPC.md)
+        * [gin](golang/library/gin.md)
 * [mysql](mysql/README.md)
     * [基础](mysql/basis/README.md)
         * [join](mysql/basis/join.md)
