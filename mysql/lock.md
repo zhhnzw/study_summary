@@ -128,6 +128,9 @@ A: 表级锁时，不管是否查询到记录，都会锁定表（MyISAM）; 行
 
 乐观锁不是真正的锁，只是一种并发控制的思想。
 
+1. 先查出`version`字段，假设查出来的值为1
+2. `update user set point = point + 20, version = version + 1 where userid=1 and version=1`
+
 ### 死锁
 
 是指两个或者多个**事务**在同一资源上互相占用，并请求锁定对方占用的资源，从而导致恶性循环。
