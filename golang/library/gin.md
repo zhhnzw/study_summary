@@ -2,7 +2,7 @@
 
 ### 路由
 
-gin框架采用了[httprouter](https://github.com/julienschmidt/httprouter进行路由匹配，httprouter 是通过基数树（radix tree）来进行高效的路径查找。
+gin框架采用了[httprouter](https://github.com/julienschmidt/httprouter)进行路由匹配，httprouter 是通过基数树（radix tree）来进行高效的路径查找。
 
 前缀树（trie），是一个多叉树，广泛应用于字符串搜索，每个树节点存储一个字符，从根节点到任意一个叶子结点串起来就是一个字符串；基数树（radix tree）是优化之后的前缀树，对空间进一步压缩，如果该节点是唯一的子树，就和父节点合并。
 
@@ -69,3 +69,66 @@ c.Abort() 阻止未执行的挂起函数继续被调用，未执行的中间件�
 中间件和controller都能使用，在不同的中间件和controller之间可以利用这2个函数来传值。
 
 应用场景：在中间件中根据用户传递的cookie或token来判断用户身份，然后c.Set("userId", id)好，controller就可以调用c.Get("userId")直接取出来。
+
+### 优雅关机
+
+http.Server 内置的 [Shutdown()](https://golang.org/pkg/net/http/#Server.Shutdown) 方法就支持优雅地关机
+
+```go
+package main
+
+import (
+	"context"
+	"log"
+	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
+
+	"github.com/gin-gonic/gin"
+)
+
+func main() {
+	router := gin.Default()
+	router.GET("/", func(c *gin.Context) {
+		time.Sleep(5 * time.Second)
+		c.String(http.StatusOK, "Welcome Gin Server")
+	})
+
+	srv := &http.Server{
+		Addr:    ":8080",
+		Handler: router,
+	}
+
+	go func() {
+		// 开启一个goroutine启动服务
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Fatalf("listen: %s\n", err)
+		}
+	}()
+
+	// 等待中断信号来优雅地关闭服务器，为关闭服务器操作设置一个5秒的超时
+	quit := make(chan os.Signal, 1) // 创建一个接收信号的通道
+	// kill 默认会发送 syscall.SIGTERM 信号
+	// kill -2 发送 syscall.SIGINT 信号，我们常用的Ctrl+C就是触发系统SIGINT信号
+	// kill -9 发送 syscall.SIGKILL 信号，但是不能被捕获，所以不需要添加它
+	// signal.Notify把收到的 syscall.SIGINT或syscall.SIGTERM 信号转发给quit
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)  // 此处不会阻塞
+	<-quit  // 阻塞在此，当接收到上述两种信号时才会往下执行
+	log.Println("Shutdown Server ...")
+	// 创建一个5秒超时的context
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	// 5秒内优雅关闭服务（将未处理完的请求处理完再关闭服务），超过5秒就超时退出
+	if err := srv.Shutdown(ctx); err != nil {
+		log.Fatal("Server Shutdown: ", err)
+	}
+
+	log.Println("Server exiting")
+}
+```
+
+### 优雅重启
+
+多台服务器，滚动发布，当1台服务器shutdown时，还有其他服务器可以为用户提供服务，逐个重启即可。
