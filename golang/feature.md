@@ -2,9 +2,9 @@
 
 先说结论: 值传递。但却需要区分传递的参数是引用类型还是非引用类型，以及传递的参数有没有指针（包括传递的参数子元素是否包含指针）
 
-* 引用类型：slice、map、channel
+* 引用类型：`slice`、`map`、`channel`
 * 引用类型不是传引用
-* make的map和channel是指针类型, slice不是, [参考slice特性](/golang/slice.md)
+* `make`的`map`和`channel`本质上是指针类型, `slice`不是（如`map`用 `make`函数返回的是一个`hmap`类型的指针`*hmap`，`slice`本质上是结构体，`make`函数总是返回初始化后类型变量本身）, [参考slice特性](/golang/slice.md)
 * 自定义的Struct不是引用类型, 但若其子元素有指针类型时, 其特性将类似于slice
 
 #### 以slice为案例
