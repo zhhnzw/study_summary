@@ -34,6 +34,8 @@
     * [docker](distribute/docker/README.md) 
         * [Dockerfile](distribute/docker/dockerfile.md)
         * [网络](distribute/docker/network.md)
+    * [kubernetes](distribute/kubernetes/README.md) 
+        * [搭建集群](distribute/kubernetes/build.md)
     * [微服务](distribute/micro/README.md) 
         * [demo](distribute/micro/demo.md)
 * [linux](linux/README.md) 
