@@ -4,13 +4,13 @@ ZooKeeper是一个分布式的协调服务，为分布式应用提供一致性�
 
 ### ZooKeeper如何保证数据一致性？
 
-![zookeeper数据一致性](../src/kafka/zookeeper_data_consistency.png?lastModify=1611542798)
+![zookeeper数据一致性](../src/kafka/zookeeper_data_consistency.png)
 
 ### ZooKeeper的Leader选举机制？
 
 ZooKeeper的节点有Leader、Follower、Observer三种。
 
-![zookeeper数据一致性](../src/kafka/zookeeper_role.png?lastModify=1611542798)
+![zookeeper数据一致性](../src/kafka/zookeeper_role.png)
 
 - 过半机制：集群中半数以上的节点存活，ZooKeeper服务就可以正常使用。所以Zookeeper适合安装奇数台的服务器，最少是3台。竞选过程中得票超过半数时竞选成功成为Leader。
 - ID数：服务器ID编号越大，在选举算法中的权重越大；服务器中存放数据的ID号越大，说明数据越新，该台服务器的选举权重就越大。
