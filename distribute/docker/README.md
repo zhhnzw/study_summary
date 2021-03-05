@@ -1,6 +1,6 @@
 ## Docker
 
-一个“容器”，实际上是一个由 Linux Namespace、Linux Cgroups 和 rootfs 三种技术构建出来的进程的隔离环境。
+容器的本质是进程，是一个由 Linux Namespace 做隔离、Linux Cgroups 做资源限制 和 rootfs 做文件系统 三种技术构建出来的隔离环境。
 
 [官方文档](https://docs.docker.com/)
 
