@@ -97,17 +97,17 @@ COPY指令只能从执行docker build所在的主机上读取资源并复制到�
 
 ### VOLUME
 
-如:
-
 ```dockerfile
 VOLUME ["/data"]
 ```
 
-Dockerfile 的`VOLUME`指令主要是起到声明匿名数据卷的作用, `docker run`启动容器时, 若不含设置数据卷的参数, 则会在`/var/lib/docker/volumes`目录创建匿名卷(建议设置好)
+Dockerfile 的`VOLUME`指令主要是起到声明匿名数据卷的作用, `docker run`启动容器时, 若不含设置数据卷的参数, 则每次运行一个新的container时都会在`/var/lib/docker/volumes`目录创建随机名称的匿名卷，不建议仅使用这个方法挂载目录，命令行方式挂载目录见下文。
 
-#### 推荐使用方法
+### Docker命令行挂载目录
 
 ​	容器运行时应该尽量保持容器存储层不发生写操作，对于数据库类需要保存动态数据的应用，其数据库文件应该保存于卷(volume)中
+
+#### bind volume
 
 1. 创建一个VOLUME
 
@@ -125,3 +125,17 @@ Dockerfile 的`VOLUME`指令主要是起到声明匿名数据卷的作用, `dock
 
    - 容器中的挂载位置与宿主数据卷文件一致, 任何一方的改动都可以让另一方同步, 可理解为VOLUME帮我们做了一个类似于软连接的功能
    - 持久化: 删除容器, 宿主的数据卷仍然存在
+
+#### bind mount
+
+可以绑定目录，也可以绑定单个文件，如：
+
+`docker run -itd --name=nginx1 -p 88:80 -v /data/nginx/index.html:/usr/share/nginx/html/index.html nginx`
+
+若启动的容器已经存在了该文件，则容器内的文件会被隐藏，取而代之的是挂载的文件。
+
+#### 区别
+
+bind volume 会先将容器内的内容拷贝到volume，若volume已有该文件，则会就覆盖掉容器内的文件。
+
+bind mount 会直接将外部的目录全覆盖容器内部目录。

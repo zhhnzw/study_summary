@@ -39,6 +39,7 @@
         * [Pod](distribute/kubernetes/pod.md)
         * [Controller](distribute/kubernetes/controller.md)
         * [Service](distribute/kubernetes/service.md)
+        * [持久化存储](distribute/kubernetes/store.md)
         * [操作案例](distribute/kubernetes/demo.md)
     * [微服务](distribute/micro/README.md) 
         * [demo](distribute/micro/demo.md)
