@@ -140,6 +140,6 @@ Dockerfile 的`VOLUME`指令主要是起到声明匿名数据卷的作用, `dock
 
 #### 区别
 
-bind volume 会先将容器内的内容拷贝到volume，若volume已有该文件，则会就覆盖掉容器内的文件。
+bind mount 会直接将外部的目录全覆盖容器内部目录。而 bind volume 会先将容器内的内容拷贝到volume，若volume已有该文件，则会覆盖掉容器内的文件。
 
-bind mount 会直接将外部的目录全覆盖容器内部目录。
+bind mount 可以绑定单个文件，而 bind volume 只能绑定目录。
