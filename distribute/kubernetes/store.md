@@ -8,6 +8,8 @@
 
 ### Persistent Volume（PV）和 Persistent Volume Claim（PVC）
 
+Kubernetes 中 PVC 和 PV 的设计，**类似于“接口”和“实现”的思想**。开发者只要知道并会使用“接口”，即：PVC；而运维人员则负责给“接口”绑定具体的实现，即：PV。
+
 PV 定义的是一个持久化存储在宿主机上的目录，比如一个 NFS 的挂载目录。
 
 ```yaml
