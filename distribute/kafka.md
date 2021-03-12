@@ -4,7 +4,9 @@ Kafka是一个分布式的基于发布/订阅模式的消息队列(Message Queue
 
 ### Kafka与ZooKeeper
 
-Kafka依赖于ZooKeeper，ZooKeeper给Kafka提供组成集群的功能，存储一些必要的集群信息，帮助kafka的消费者存储消费到的位置信息offset（kafka v0.9之后，offset又存到kafka了，这样可以减小与ZooKeeper的交互频率）。
+ZooKeeper给Kafka提供组成集群的功能，Kafka集群中有一个Broker会被选举为Controller，负责管理集群Broker的上下线，所有Topic的分区副本分配和Leader选举等工作，Controller的管理工作都是依赖于ZooKeeper的。
+
+ZooKeeper还用于存储一些信息，比如帮助kafka的消费者存储消费到的位置信息offset（kafka v0.9之后，offset又存到kafka了，存在__consumer_offsets这个内置Topic，这样可以减小与ZooKeeper的交互频率）。
 
 ### Kafka性能为什么这么高？
 
@@ -33,6 +35,29 @@ Broker在物理上把 Topic 分成一个或多个 Partition（对应 server.prop
 * 基于大小：log.retention.bytes=1073741824
 
 需要注意的是，因为 Kafka 读取特定消息的时间复杂度为 O(1)，即与文件大小无关，所以这里删除过期文件与提高 Kafka 性能无关。
+
+#### 文件存储
+
+由于生产者生产的消息会不断追加到`log`文件末尾，为防止`log`文件过大导致数据定位效率低下，Kafka采取了**分片**和**索引**机制，将每个Partition的数据分为多个`segment`（单个日志文件最大为`log.segment.bytes=1073741824`，超过1GB就会再生成1个新的segment日志文件），每个`segment`对应2个文件，`.index`和`.log`。这些文件位于一个文件夹下，该文件夹的命名规则为：topic 名称+分区序号。例如，first 这个 topic 有三个分区，则其对应的文件夹为  first- 0,first-1,first-2。index 和  log 文件以当前  segment 的第一条消息的  offset 命名，一个文件夹下的文件类似于这样：
+
+00000000000000000000.index 
+00000000000000000000.log 
+00000000000000170410.index 
+00000000000000170410.log 
+00000000000000239430.index 
+00000000000000239430.log
+
+#### kafka是如何根据offset查找到对应的消息数据的？
+
+![根据offset查找消息数据](../src/kafka/seek_offset.png)
+
+1. 先找到 offset=3 的 message 所在的 segment文件（利用二分法查找）。
+
+2. 对找到的 segment 中的.index文件，用查找的offset 减去.index文件名的offset，也就是00000.index文件，我们要查找的offset为3的message在该.index文件内的索引为3；index数据的存储类似于数组，每条索引都固定占用1024字节，这样就可以在.index文件中直接seek到目标索引数据。
+
+3.  根据找到的相对offset为3的索引，确定message存储的物理偏移地址为756（假设查找到的数据长度为1000）。
+
+4.  根据物理偏移地址和数据长度，去.log文件即可直接seek到相应的Message。
 
 #### 分区的作用
 
@@ -63,13 +88,13 @@ Broker在物理上把 Topic 分成一个或多个 Partition（对应 server.prop
 
 #### 数据可靠性保证
 
-为保证producer发送的数据，能可靠的发送到指定的topic，topic的每个Partition收到producer发送的数据后，都需要向producer发送**ACK**(acknowledgement确认收到)，如果producer没收到ACK，则重新发送数据。
+为保证producer发送的数据，能可靠的发送到指定的topic，topic的每个Partition收到producer发送的数据后，都需要向producer发送**ACK**(acknowledgement确认收到)，如果producer没收到ACK，则Leader重新发送数据。
 
 #### 数据同步策略
 
 kafka集群的数据同步策略没有选用半数机制。
 
-Leader维护了一个动态的 in-sync-replica set（<span id="isr">**ISR**</span>），意为和Leader保持同步的Follower集合（动态选出优质的Follower）。当ISR中的Follower完成数据同步之后，就会给Leader发送ACK，如果Follower长时间未向Leader同步数据，则该Follower将被提出ISR，该时间阈值由`replica.lag.time.max.ms`参数设定。Leader发生故障之后，就会从ISR中选举新的Leader。
+Leader维护了一个动态的 in-sync-replica set（<span id="isr">**ISR**</span>），意为和Leader保持同步的Follower集合（动态选出优质的Follower）。当ISR中的Follower完成数据同步之后，就会给Leader发送ACK，如果Follower长时间未向Leader同步数据，则该Follower将被踢出ISR，该时间阈值由`replica.lag.time.max.ms`参数设定。Leader发生故障之后，就会从ISR中选举新的Leader。
 
 #### ACK应答机制
 
@@ -83,7 +108,7 @@ Leader维护了一个动态的 in-sync-replica set（<span id="isr">**ISR**</spa
 
 #### 数据一致性
 
-有broker发生故障时可能会导致数据一致性问题
+有broker发生故障时可能会导致节点之间数据一致性问题
 
 ![数据一致性](../src/kafka/hw.png)
 
@@ -91,10 +116,10 @@ Leader维护了一个动态的 in-sync-replica set（<span id="isr">**ISR**</spa
 
 **HW**（High Watermark）: 所有副本中最小的LEO
 
-* Follower故障：该Follower会被临时踢出  ISR，待该  follower 恢复后，follower 会读取本地磁盘 
-  记录的上次的 HW，并将 log 文件高于 HW 的部分截取掉，从 HW 开始向 leader 进行同步。 
-  等该 follower 的 LEO 大于等于该 Partition 的  HW，即   follower 追上  leader 之后，就可以重 新加入 ISR 了。
-* Leader故障：leader 发生故障之后，会从  ISR 中选出一个新的  leader，之后，为保证多个副本之间的数据一致性，其余的 follower 会先将各自的 log 文件高于 HW 的部分截掉，然后从新的  leader 同步数据。
+* Follower故障：该Follower会被临时踢出  ISR，待该  Follower 恢复后，Follower 会读取本地磁盘 
+  记录的上次的 HW，并将 log 文件高于 HW 的部分截取掉，从 HW 开始向 Leader 进行同步。 
+  等该 Follower 的 LEO 大于等于该 Partition 的  HW，即   Follower 追上  Leader 之后，就可以重 新加入 ISR 了。
+* Leader故障：Leader 发生故障之后，会从  ISR 中选出一个新的  Leader，之后，为保证多个副本之间的数据一致性，其余的 Follower 会先将各自的 log 文件高于 HW 的部分截掉，然后从新的  Leader 同步数据。
 
 注：**HW**机制保证的是副本之间的数据一致性，数据的重复和丢失问题由**ACK**保证
 
@@ -106,7 +131,7 @@ At Least Once + 幂等性   = Exactly Once
 
 开启幂等性的 Producer 在 初始化的时候会被分配一个 PID（Producer ID），发往同一 Partition 的消息会附带 Sequence Number。而 Broker 端会对<PID, Partition, SeqNumber>做缓存，当具有相同主键的消息提交时，Broker 只 会持久化一条。
 
-但是 PID 重启就会变化，同时不同的 Partition 也具有不同主键，所以幂等性无法保证跨分区跨会话的 Exactly Once。跨分区跨会话的 Exactly Once见下文[Kafka事务](#transaction)。
+但是 PID 重启就会变化，同时不同的 Partition 也具有不同主键，所以幂等性无法保证跨分区跨会话的 Exactly Once。跨分区跨会话的 Exactly Once 见下文[Kafka事务](#transaction)。
 
 ### 消费者
 
@@ -124,7 +149,7 @@ At Least Once + 幂等性   = Exactly Once
 
 #### 消费者与分区
 
-同一个分区下的某个topic是不能被同一个消费者组里的多个成员同时消费的，即一个分区下的某个topic只能被同一个消费者组里的某一个成员消费。
+同一个分区下的某个topic是不能被同一个消费者组里的多个成员同时消费的，即某个topic的一个分区只能被同一个消费者组里的某一个成员消费。
 
 当消费者组的成员数大于分区数时，就是资源浪费；当消费者组的成员数等于分区数时，即是最大消费能力的配置。
 
@@ -134,7 +159,7 @@ At Least Once + 幂等性   = Exactly Once
 
 * RoundRobin: 按消费者组所涉及的全部Partition，视为一个整体（无视Topic来划分），轮询分配。
   优点: 比较均匀的分配。
-  缺点: 要保证该消费者组里面的所有消费者订阅的topic是一样的。
+  缺点: 要保证该消费者组里面的所有消费者订阅的topic必须是一样的。
   
 * Range: 逐个Topic分配Partition，同一个Topic按Partition序号的范围尽量均匀分配（若不能整除，就给消费者组里排在前面的消费者多分1个Partition）。
   优点: 消费者组里面的消费者可以订阅不同的主题。
@@ -183,3 +208,7 @@ At Least Once + 幂等性   = Exactly Once
 ### <span id="transaction">Kafka事务<span>
 
 kafka支持原子操作，在一个事务中的一系列操作，包括生产者生产消息和消费者提交偏移量，同时成功或者失败。
+
+案例：假设某一个 Topic 本轮批次要发送30条数据，写入到3个Partition中，每个Partition写入10条，当前2个Partition写入成功，后面一个Partition还没写入时，producer挂掉了，当该producer重启时，把这30条数据重新发一次，由于该producer的PID发生了变化，则写入幂等性并不能生效（幂等性的key是<PID, Partition, SeqNumber>），那么就会导致数据重复了。
+
+对于跨分区跨会话的 Exactly Once ：由客户端引入一个全局唯一的 transactionID（用户提供`transactional.id`） ，对于以上案例，即使客户端挂掉了，重启之后，重新取得的 transactionID 仍然是之前那个 transactionID。将 transactionID 与 PID 绑定保存在Broker中，若客户端挂掉了，拿transactionID去Broker取得之前保存的PID，这样重启后的PID就没有发生变化了，也就保证了幂等性，进而实现了跨分区跨会话的 Exactly Once。

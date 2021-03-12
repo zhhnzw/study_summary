@@ -6,6 +6,12 @@ ZooKeeper是一个分布式的协调服务，为分布式应用提供一致性�
 
 ![zookeeper数据一致性](../src/kafka/zookeeper_data_consistency.png)
 
+对于多节点之间的数据同步，以 Leader 的数据为准，所以涉及到了 Leader选举算法。
+
+二阶段提交：由 Leader 发起指令“预约”，Follower 收到指令请求后发回 ACK，表示收到了，然后各节点各自提交执行指令（zk对Leader接收到的指令进行同步，而kafka和MySQL是对Leader的数据进行同步）。
+
+过半机制：Leader 不需要等所有 Follower 返回 ACK，超过一半 Follower 返回了 ACK，就代表指令成功提交了。
+
 ### ZooKeeper的Leader选举机制？
 
 ZooKeeper的节点有Leader、Follower、Observer三种。
@@ -13,7 +19,7 @@ ZooKeeper的节点有Leader、Follower、Observer三种。
 ![zookeeper数据一致性](../src/kafka/zookeeper_role.png)
 
 - 过半机制：集群中半数以上的节点存活，ZooKeeper服务就可以正常使用。所以Zookeeper适合安装奇数台的服务器，最少是3台。竞选过程中得票超过半数时竞选成功成为Leader。
-- ID数：服务器ID编号越大，在选举算法中的权重越大；服务器中存放数据的ID号越大，说明数据越新，该台服务器的选举权重就越大。
+- ID编号：服务器ID编号越大，在选举算法中的权重越大；服务器中存放数据的ID号越大，说明数据越新，该台服务器的选举权重就越大。
 
 服务器的选举状态
 
@@ -43,3 +49,15 @@ ZooKeeper的节点有Leader、Follower、Observer三种。
 4. ZooKeeper服务器监听到数据有变化，就会将这个消息发送给监听列表中的客户端的**listener**线程
 
 5. 客户端的**listener**线程触发`Process()`回调方法。
+
+### ZooKeeper的节点类型
+
+* PERSISTENT                                 持久化节点
+
+* PERSISTENT_SEQUENTIAL         持久化顺序节点
+
+* EPHEMERAL                                 临时节点
+
+* EPHEMERAL_SEQUENTIAL          临时顺序节点
+
+注：临时节点，客户端断开后节点就删除了；顺序节点，给提交的节点名加上zk维护自增的编号。
