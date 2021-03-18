@@ -42,7 +42,7 @@ ZooKeeper的节点有Leader、Follower、Observer三种。
 
 1. ZooKeeper客户端会创建两个线程，一个负责网络连接通信(**connet**)，一个负责监听(**listener**)。
 
-2. ZooKeeper客户端通过(**connet**)线程将注册监听事件发生给ZooKeeper服务器。
+2. ZooKeeper客户端通过(**connet**)线程将注册监听事件发送给ZooKeeper服务器。
 
 3. ZooKeeper服务器有一个注册监听列表，将注册的监听事件添加到列表中。
 
@@ -60,4 +60,4 @@ ZooKeeper的节点有Leader、Follower、Observer三种。
 
 * EPHEMERAL_SEQUENTIAL          临时顺序节点
 
-注：临时节点，客户端断开后节点就删除了；顺序节点，给提交的节点名加上zk维护自增的编号。
+注：2种临时节点类型，客户端掉线后就会删除该节点；2种顺序节点类型，会给提交的节点名加上zk维护自增的编号。

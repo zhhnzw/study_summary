@@ -63,7 +63,7 @@ Broker在物理上把 Topic 分成一个或多个 Partition（对应 server.prop
 
 一个Topic的数据可以存放在多个Broker，一个Broker上可以存放多个Partition。这样，producer可以将数据发送给多个Broker上的多个Partition，consumer也可以并行从多个Broker上的多个Partition上读数据。实现了水平扩展，提高了并发能力。
 
-#### 对消息数据分区的策略
+#### 生产者对消息数据分区存储的策略
 
 1. 指定了 Partition，则直接使用；
 2. 未指定 Partition 但指定 key，通过对 key 的 value 进行 hash 出一个 Partition；
@@ -71,7 +71,7 @@ Broker在物理上把 Topic 分成一个或多个 Partition（对应 server.prop
 
 #### 副本（Replication）
 
-在集群中Topic是有分区的，Partition也有单独的Leader和Follower，只能连Leader生产和消费，Follower仅提供备份作用。
+在集群中Topic是有多个分区（Partition）的，多个Partition组成的整体也有Leader和Follower，只能连Leader生产和消费，Follower仅提供备份作用。
 
 副本是对应于Partition的数据。副本数不是备份数。若设置为1，实际上只有1份数据；若设置为2，则有1份备份数据（Follower存在于该Topic的Leader以外的某一台机器上，该Leader宕机时将发挥作用）。
 
@@ -131,7 +131,7 @@ At Least Once + 幂等性   = Exactly Once
 
 开启幂等性的 Producer 在 初始化的时候会被分配一个 PID（Producer ID），发往同一 Partition 的消息会附带 Sequence Number。而 Broker 端会对<PID, Partition, SeqNumber>做缓存，当具有相同主键的消息提交时，Broker 只 会持久化一条。
 
-但是 PID 重启就会变化，同时不同的 Partition 也具有不同主键，所以幂等性无法保证跨分区跨会话的 Exactly Once。跨分区跨会话的 Exactly Once 见下文[Kafka事务](#transaction)。
+但是 PID 重启就会变化，所以幂等性无法保证跨分区跨会话的 Exactly Once。跨分区跨会话的 Exactly Once 见下文[Kafka事务](#transaction)。
 
 ### 消费者
 
@@ -153,7 +153,7 @@ At Least Once + 幂等性   = Exactly Once
 
 当消费者组的成员数大于分区数时，就是资源浪费；当消费者组的成员数等于分区数时，即是最大消费能力的配置。
 
-#### 分区分配策略
+#### 消费者分区分配策略
 
 一个consumer group中有多个consumer，一个topic有多个partition，所以必然会涉及到partition的分配问题，即确定哪个partition由哪个consumer来消费。消费者组的成员有增加删除的时候会触发策略重新分配。
 
