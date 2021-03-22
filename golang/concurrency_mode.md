@@ -105,9 +105,35 @@ Goroutine调度器和OS调度器是通过M结合起来的，每个M都代表了1
 
 ### GPM调度过程
 
+#### M0
+
+启动程序后的编号为0的主线程，**全局唯一**，负责执行初始化操作和启动第一个G，即main的goroutine，启动第一个G之后，M0的功能就和其他普通M一样了。
+
+#### G0
+
+**不是全局唯一**，每个M在启动时，都会先创建它对应的G0，G0本身不指向任何可执行函数，G0仅用于负责调度G。比如G2切换到G3的具体过程是：G2切换到G0，G0切换到G3，G的切换需要依赖G0。
+
 #### 以helloworld为例的简单程序的调度过程
 
+进程刚刚启动，还没执行到main函数时，创建M0，M0创建G0，全局G队列初始化，P列表初始化。
+
+![Goroutine调度原理](../src/golang/concurrency/hello_world_0.png)
+
+此时，程序执行到main函数，M0创建除G0外的第一个G，即main的goroutine。
+
+![Goroutine调度原理](../src/golang/concurrency/hello_world_1.png)
+
+创建main G之后，M0与G0解绑，并寻找一个空闲的P与它绑定，随后把main G放入P的本地队列中（此时没有G与M0绑定）。
+
+![Goroutine调度原理](../src/golang/concurrency/hello_world_2.png)
+
+main G放入P的本地队列之后，其调度方式就与普通的G是一样的了，从P的本地队列取出G与M绑定，执行，若超过10ms，就放回P队列，再取出下一个G与M绑定执行，如此循环，直到main G的函数全部执行完exit或发生panic为止。
+
+![Goroutine调度原理](../src/golang/concurrency/hello_world_3.png)
+
 #### 场景：创建新的G
+
+
 
 #### 场景：某个G执行完毕
 
