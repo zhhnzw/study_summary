@@ -16,19 +16,19 @@ socket也提供了对应于无连接的UDP编程操作接口。
 
 
 
-1. TCP 连接建立
+2. TCP 连接建立
 
 ![图片](https://mmbiz.qpic.cn/mmbiz_png/J0g14CUwaZeo9xBVAyPJ8iaWCC6sYS8439Tu5oialB8LLgGRSjD36eicoafXOgndoBLicQa4JPEQB6Ud8DZrGhvq5Q/640?wx_fmt=png&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
 
 
 
-1. TCP 连接断开
+3. TCP 连接断开
 
 ![图片](https://mmbiz.qpic.cn/mmbiz_png/J0g14CUwaZeo9xBVAyPJ8iaWCC6sYS843WyTcnaErCIbRDmRYIWoo4ug9FkN86eDcnJSkibqQ6TSMv8qIO75Xd4g/640?wx_fmt=png&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
 
 
 
-1. Socket 编程
+4. Socket 编程
 
 ![图片](https://mmbiz.qpic.cn/mmbiz_png/J0g14CUwaZeo9xBVAyPJ8iaWCC6sYS843iaiaB8VOItwTI3Vibxl1Xd1bQ1CF6ymhgQEZoYtVsViaePhIc09ib93LAag/640?wx_fmt=png&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
 
