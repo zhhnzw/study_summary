@@ -2,10 +2,14 @@
 
 | Docker网络模式 | 配置                      | 说明                                                         |
 | -------------- | ------------------------- | ------------------------------------------------------------ |
-| host模式       | –net=host                 | 容器和宿主机共享Network namespace。                          |
-| container模式  | –net=container:NAME_or_ID | 容器和另外一个容器共享Network namespace。 kubernetes中的pod就是多个容器共享一个Network namespace。 |
-| none模式       | –net=none                 | 容器有独立的Network namespace，但并没有对其进行任何网络设置，如分配veth pair 和网桥连接，配置IP等。 |
-| bridge模式     | –net=bridge               | （默认为该模式）                                             |
+| bridge         | –net=bridge               | 默认模式，会为每一个容器分配Network Namespace、设置IP等，并将一个主机上的Docker容器连接到一个虚拟网桥上。 |
+| host           | –net=host                 | 容器和宿主机共享Network namespace。                          |
+| container      | –net=container:NAME_or_ID | 容器和另外一个容器共享Network namespace。 kubernetes中的pod就是多个容器共享一个Network namespace。 |
+| none           | –net=none                 | 容器有独立的Network namespace，但并没有对其进行任何网络设置，如分配veth pair 和网桥连接，配置IP等。 |
+
+### bridge
+
+当Docker server启动时，会在主机上创建一个名为docker0的虚拟网桥，此主机上启动的Docker容器会连接到这个虚拟网桥上。虚拟网桥的工作方式和物理交换机类似，这样主机上的所有容器就通过交换机连在了一个二层网络中。
 
 ### docker compose 网络
 
