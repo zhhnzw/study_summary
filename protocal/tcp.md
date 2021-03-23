@@ -1,6 +1,6 @@
 ## TCP
 
-本节内容直接复制了小林coding](https://mp.weixin.qq.com/s/tH8RFmjrveOmgLvk9hmrkw)。
+本节内容直接复制了[小林coding](https://mp.weixin.qq.com/s/tH8RFmjrveOmgLvk9hmrkw)。
 
 ### TCP/IP 协议 和 socket 有什么区别
 
