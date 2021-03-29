@@ -84,10 +84,11 @@ Hello CloudMan
 #### 总结
 
 - 使用 RUN 指令安装应用和软件包，构建镜像。
-- 如果 Docker 镜像的用途是运行应用程序或服务，比如运行一个 MySQL，应该优先使用 Exec 格式的 ENTRYPOINT 指令。CMD 可为 ENTRYPOINT 提供额外的默认参数，同时可利用 docker run 命令行替换默认参数。
-- 如果想为容器设置默认的启动命令，可使用 CMD 指令。用户可在 docker run 命令行中替换此默认命令。
+- 如果 Docker 镜像的用途是运行应用程序或服务，比如运行一个 MySQL，应该优先使用 Exec 格式的 ENTRYPOINT 指令。
+- 可同时使用 CMD 和 ENTRYPOINT，CMD 可为 ENTRYPOINT 提供额外的默认参数，还可以在 docker run 尾部添加该进程的执行指令来替换Dockerfile设置的 CMD 参数。
+- 如果想为容器设置默认的启动命令，可仅使用 CMD 指令。同样的，用户可在 docker run 尾部添加该进程的执行指令来替换Dockerfile设置的默认CMD指令。
 
-###COPY、ADD 的区别
+### COPY、ADD 的区别
 
 COPY指令只能从执行docker build所在的主机上读取资源并复制到镜像中
 
