@@ -1,6 +1,22 @@
 ## TCP
 
-本节内容直接复制了[小林coding](https://mp.weixin.qq.com/s/tH8RFmjrveOmgLvk9hmrkw)。
+### 单机最大并发TCP连接数？
+
+系统用一个4四元组来唯一标识一个TCP连接：{local ip, local port,remote ip,remote port}
+
+#### 作为客户端时
+
+client每次发起tcp连接请求时，除非绑定端口，通常会让系统选取一个空闲的本地端口（local port），该端口是独占的，不能和其他tcp连接共享。tcp端口的数据类型是unsigned short，因此本地端口个数最大只有65536，端口0有特殊含义，不能使用，这样可用端口最多只有65535，所以在全部作为client端的情况下，最大tcp连接数为65535，这些连接可以连到不同的server ip。
+
+#### 作为服务端时
+
+server通常固定在某个本地端口上监听，等待client的连接请求，只需要占用服务器的一个本地端口。4元组中的 local ip 和 local port 是固定的，remote ip（也就是client ip）和remote port（也就是client port）是可变的。因此最大tcp连接为客户端ip数×客户端port数，对IPV4，最大tcp连接数约为2的32次方（ip数）×2的16次方（port数），也就是server端单机最大tcp连接数约为2的48次方。
+
+#### 结论
+
+作为客户端时，最大并发TCP数为65536，作为服务端时，仅受服务器内存资源限制（一个TCP连接占用3KB内存）。
+
+**注：本节下面的内容直接复制了[小林coding](https://mp.weixin.qq.com/s/tH8RFmjrveOmgLvk9hmrkw)。**
 
 ### TCP/IP 协议 和 socket 有什么区别
 
