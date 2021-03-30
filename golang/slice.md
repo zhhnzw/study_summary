@@ -59,5 +59,5 @@ func main() {
 
 我们可以通过函数修改存储元素的内容，但是永远修改不了`len`和`cap`，因为他们只是一个拷贝，如果要修改，那就要传递`*slice`作为参数才可以。
 
-[参考](https://blog.csdn.net/cyk2396/article/details/78893420)
+从slice创建slice的问题，[参考](https://www.cnblogs.com/qcrao-2018/p/10631989.html)
 

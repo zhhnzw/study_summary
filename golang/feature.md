@@ -39,20 +39,29 @@ func main() {
 package main
 import "log"
 func modifySli(sli []int) {
-  // 0xc00000c060
-  //&sli已经是新的了, 说明函数是值传递(若为引用传递, 需要与调用时的地址保持一致)
-	log.Printf("slice address in modifySli:%p\n", &sli) 
+	// 0xc00000c060
+	//&sli已经是新的了, 说明函数是值传递(若为引用传递, 需要与调用时的地址保持一致)
+	log.Printf("slice address in modifySli:%p\n", &sli)
 	sli[0] = 2
+}
+func modifySli1(sli []int) {
+	// 由于传进来的参数，cap为1，已经有了1个元素，append之后发生扩容
+	sli = append(sli, 2)
+	sli[0] = 1
 }
 func main() {
 	s := make([]int, 0, 1)
 	s = append(s, 1)
-  // 0xc00000c040 [1]
-	log.Printf("%p %+v\n", &s, s)  
+	// 0xc00000c040 [1]
+	log.Printf("%p %+v\n", &s, s)
 	modifySli(s)
-  // 0xc00000c040 [2] 
-  // 函数调用没有传递指针, modifySli函数也成功修改了slice的数据
-	log.Printf("%p %+v\n", &s, s)  
+	// 0xc00000c040 [2]
+	// 函数调用没有传递指针, modifySli函数也成功修改了slice的数据
+	log.Printf("%p %+v\n", &s, s)
+	modifySli1(s)
+	// 0xc00000c040 [2]
+	// 在 modifySli1 中，sli发生了扩容，在该函数中sli变量拥有了新的底层数组，就影响不到外面的s了
+	log.Printf("%p %+v\n", &s, s)
 }
 ```
 
