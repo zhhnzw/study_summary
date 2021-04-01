@@ -49,6 +49,5 @@
 * [es](es/README.md) 
     * [基础](es/base.md)
 * [协议](protocal/README.md) 
-    * [五层模型](protocal/internet.md)
     * [HTTP](protocal/http.md)
     * [TCP](protocal/tcp.md)
