@@ -60,7 +60,7 @@ type mapextra struct {
 }
 ```
 
-如下图，常规桶和溢出桶在内存中是连续的，假设预分配了2个溢出桶，假设编号为2的常规桶装满了8个键值对，就会在其后链一个溢出桶，该bmap的overflow指向内存中的第一个溢出桶，hmap的mapextra中的nextoverflow就指向了内存中的第二个溢出桶的地址，此时，只使用了1个溢出桶，hmap的noverflow=1，。
+如下图，常规桶和溢出桶在内存中是连续的，假设预分配了2个溢出桶，假设编号为2的常规桶装满了8个键值对，就会在其后链一个溢出桶，该`bmap`的`overflow`指向内存中的第一个溢出桶，`hmap`的`mapextra`中的`nextoverflow`就指向了内存中的第二个溢出桶的地址，此时，只使用了1个溢出桶，`hmap`的`noverflow=1`。
 
 ![map结构](../src/golang/map_struct.png)
 
@@ -71,5 +71,13 @@ type mapextra struct {
 
 map的Go语言实现细节优化点很复杂, [参考](https://draveness.me/golang/docs/part2-foundation/ch03-datastructure/golang-hashmap/)
 
-线程安全问题
+### 线程安全问题
 
+Go语言中内置的map不是并发安全的，并发写会panic：`fatal error: concurrent map writes`。
+可以使用`sync.Map`来解决map的并发安全问题，`sync.Map`不需要调用`make`来初始化：
+
+```go
+var m = sync.Map{}
+m.Store(key, n)	// set
+value, _ := m.Load(key) // get
+```
