@@ -70,7 +70,7 @@
 | id            | 执行编号，结合table字段可看出表的读取顺序。<br>如果有子查询，id的序号会递增，id值越大，越先被执行；对于id值相同的，顺序执行。 |
 | select_type   | 显示本行是简单或复杂select。<br>如果查询有任何复杂的子查询，则最外层标记为PRIMARY（DERIVED、UNION、UNION RESUlT） |
 | table         | 表示访问的是哪个表。                                         |
-| type          | 数据读取操作类型。<br>从最好到最差：system > const > eq_ref > ref > range > index > ALL<br>eq_ref：对于每个索引键，表中只有一条记录与之匹配，常见于主键或唯一索引扫描。<br>ref：非唯一索引扫描，返回多条记录。<br>range：也可应用索引（key列显示具体使用了哪个索引），where语句中出现了between、<、>、in等范围扫描。<br>index：Full Index Scan，与`ALL`的区别是`index`类型遍历的是索引树，索引文件比数据文件小。<br>ALL：全表扫描。 |
+| type          | 表明这个查询访问数据的方式。<br>从最好到最差：system > const > eq_ref > ref > range > index > ALL<br>eq_ref：对于每个索引键，表中只有一条记录与之匹配，常见于主键或唯一索引扫描。<br>ref：非唯一索引扫描，返回多条记录。<br>range：也可应用索引（key列显示具体使用了哪个索引），where语句中出现了between、<、>、in等范围扫描。<br>index：Full Index Scan，与`ALL`的区别是`index`类型遍历的是索引树，索引文件比数据文件小。<br>ALL：全表扫描。 |
 | possible_keys | 表示推测可能用到的索引，列出来的索引不一定被实际使用。       |
 | key           | 表示实际使用的索引，如果为`NULL`，则没有使用索引。           |
 | key_len       | 表示在索引里使用的字节数（最大可能长度，并非实际使用长度）。<br>在不损失精确性的情况下，长度越短越好。 |
@@ -144,7 +144,7 @@ EXPLAIN SELECT * FROM class LEFT JOIN book ON class.card = book.card;
 # 给以上查询语句的右表添加索引
 ALTER TABLE book ADD INDEX idx_card(`card`);
 ```
-<img src="../src/mysql/query/demo00_explain_00.png" alt="案例00_explain_00" style="zoom:50%;" />
+<img src="../src/mysql/query/demo00_explain_00.png" alt="案例00" style="zoom:50%;" />
 
 ```sql
 # 删除 book 表的索引：
@@ -153,7 +153,7 @@ DROP INDEX idx_card ON book;
 ALTER TABLE class ADD INDEX idx_card(`card`);
 ```
 
-<img src="../src/mysql/query/demo00_explain_01.png" alt="案例00_explain_01" style="zoom:50%;" />
+<img src="../src/mysql/query/demo00_explain_01.png" alt="案例01" style="zoom:50%;" />
 
 对比可知，索引加在右表时，Extra列为 `Using index`，即**索引覆盖**，优于把索引加在左表的情况。
 
@@ -204,7 +204,7 @@ ALTER TABLE book ADD INDEX idx_card(`card`);
 ALTER TABLE phone ADD INDEX idx_card(`card`);
 ```
 
-<img src="../src/mysql/query/demo00_explain_02.png" alt="案例00_explain_01" style="zoom:50%;" />
+<img src="../src/mysql/query/demo00_explain_02.png" alt="案例02" style="zoom:50%;" />
 
 由上可知，有2个`type`列是`ref`，相应的`Extra`列是`Using index`，即**索引覆盖**，效率高。
 
