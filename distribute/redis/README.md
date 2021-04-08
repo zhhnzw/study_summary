@@ -38,7 +38,7 @@ P：Partition tolerance（分区容错性）
 
 #### BASE
 
-BASE就是为了解决关系数据库强一致性引起的问题而引起的可用性降低而提出的解决方案。
+BASE就是为了解决关系数据库强一致性而引起的可用性降低而提出的解决方案。
 
 BASE其实是下面三个术语的缩写：
 
@@ -139,6 +139,13 @@ SLAVEOF no one
 #### 如果之前挂了的master重启回来，会不会双master冲突？ 
 
  不会，原master，变成slave。
+
+#### 哨兵模式的选举
+
+1. 较低的slave_priority（这个是在配置文件中指定，默认配置为100）
+2. 较大的replication offset（每个slave在与master同步后offset自动增加）
+3. 较小的runid（每个redis实例，都会有一个runid,通常是一个40位的随机字符串,在redis启动时设置，重复概率非常小）
+4. 如果以上条件都不足以区别出唯一的节点，则会看哪个slave节点处理之前master发送的command多，就选谁。
 
 ### 集群模式和哨兵模式的区别
 
