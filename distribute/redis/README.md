@@ -2,7 +2,7 @@
 
 ### CAP原理
 
-#### 对比关系型数据库的ACID
+#### 关系型数据库的ACID
 
 通常事务必须满足4个条件（ACID）：原子性（Atomicity，或称不可分割性）、一致性（Consistency）、隔离性（Isolation，又称独立性）、持久性（Durability）。
 
