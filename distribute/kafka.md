@@ -8,6 +8,12 @@ ZooKeeper给Kafka提供组成集群的功能，Kafka集群中有一个Broker会�
 
 ZooKeeper还用于存储一些信息，比如帮助kafka的消费者存储消费到的位置信息offset（kafka v0.9之后，offset又存到kafka了，存在__consumer_offsets这个内置Topic，这样可以减小与ZooKeeper的交互频率）。
 
+### 集群搭建
+
+在配置文件中配置好数据目录`log.dirs`，依赖的zk集群`zookeeper.connect`，再配好唯一的`broker.id`
+
+逐个启动就可以了`./bin/zookeeper-server-start.sh ./config/zookeeper.properties`
+
 ### Kafka性能为什么这么高？
 
 * 分布式，分区，可以并发读写
@@ -104,7 +110,7 @@ Leader维护了一个动态的 in-sync-replica set（<span id="isr">**ISR**</spa
 | -- | --- | -------------------------------------------------------- |
 | 0       | At Most Once | producer不等待broker的ACK<br>延迟最低，可能**丢失数据**      |
 | 1       |  | producer等待broker的ACK<br/>Partition的Leader落盘成功后返回ACK<br>如果在Follower同步成功之前Leader发生故障，也会**丢失数据** |
-| -1(all) | At Least Once | producer等待broker的ACK<br/>Partition的Leader和ISR中的Follower全部落盘成功后才返回ACK<br/>如果在Follower同步完成后，broker发送ACK之前，Leader发生故障，则会**数据重复** |
+| -1(all) | At Least Once | producer等待broker的ACK<br/>Partition的Leader和ISR中的全部Follower落盘成功后才返回ACK<br/>如果在Follower同步完成后，broker发送ACK之前，Leader发生故障，则会**数据重复** |
 
 #### 数据一致性
 

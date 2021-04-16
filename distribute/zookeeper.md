@@ -2,6 +2,58 @@
 
 ZooKeeper是一个分布式的协调服务，为分布式应用提供一致性服务的软件。ZooKeeper需要配置多个实例共同构成一个集群对外提供服务以达到水平扩展的目的，每个服务器上的数据是相同的，每一个服务器均可以对外提供读和写的服务（但实际上只有Leader可以写，见下文），这点和redis是相同的，即对客户端来讲每个服务器都是平等的。
 
+### 集群搭建
+
+1. 解压zookeeper安装包
+   
+2. 配置服务器编号
+		在解压的目录下创建 zkData 作为数据目录，
+		然后在 ./zkData 目录下创建名为 myid 的文件，
+		文件里面写一个数字就可以，作为服务器的唯一编号
+
+3. 在conf目录下创建 zoo.cfg
+   
+```bash
+    # The number of milliseconds of each tick
+    tickTime=2000
+    # The number of ticks that the initial 
+    # synchronization phase can take
+    initLimit=10
+    # The number of ticks that can pass between 
+    # sending a request and getting an acknowledgement
+		syncLimit=5
+    # the directory where the snapshot is stored.
+# do not use /tmp for storage, /tmp here is just 
+    # example sakes.
+    dataDir=./zkData
+    # the port at which the clients will connect
+    clientPort=2181
+    # cluster
+    # server.A=B:C:D
+    # A 是 myid 文件里面的数字，即服务器编号
+    # B 是这个服务器ip地址
+    # C 是这个服务器与集群中的Leader服务器交换信息的端口（Leader与Follower传递副本数据的端口）
+    # D 是这个服务器用来执行选举通信的端口
+    server.1=hadoop1:2888:3888
+    server.2=hadoop2:2888:3888
+    server.3=hadoop3:2888:3888
+```
+4. 启动服务
+
+   `./bin/zkServer.sh start`
+
+   查看服务状态：`./bin/zkServer.sh status`
+
+   此时会发现有类似于这样的异常信息：`Error contacting service. It is probably not running.`
+
+   因为3节点的机器还没有半数以上的节点成功启动
+
+5. 在第2台服务器上再做一遍
+
+   再查看已经启动的2台服务状态时，发现集群已经正常工作，一台 Leader 一台 Follower
+
+6. 在第3台服务器再做一遍即可完成集群的搭建
+
 ### ZooKeeper如何保证数据一致性？
 
 ![zookeeper数据一致性](../src/kafka/zookeeper_data_consistency.png)
