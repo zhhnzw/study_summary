@@ -30,7 +30,6 @@
         * [zset](distribute/redis/zset.md)
         * [缓存](distribute/redis/cache.md)
     * [zookeeper](distribute/zookeeper.md)
-    * [分布式锁](distribute/lock.md)
     * [kafka](distribute/kafka.md)
     * [docker](distribute/docker/README.md) 
         * [Dockerfile](distribute/docker/dockerfile.md)
