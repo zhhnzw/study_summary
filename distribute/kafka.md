@@ -133,9 +133,9 @@ Leader维护了一个动态的 in-sync-replica set（<span id="isr">**ISR**</spa
 
 At Least Once + 幂等性   = Exactly Once
 
-要启用幂等性，只需要将 Producer 的参数中`enable.idompotence`设置为 true 即可。
+要启用幂等性，只需要将 Producer 的参数中`enable.idempotence`设置为 true 即可。
 
-开启幂等性的 Producer 在 初始化的时候会被分配一个 PID（Producer ID），发往同一 Partition 的消息会附带 Sequence Number。而 Broker 端会对<PID, Partition, SeqNumber>做缓存，当具有相同主键的消息提交时，Broker 只 会持久化一条。
+开启幂等性的 Producer 在 初始化的时候会被分配一个 PID（Producer ID），发往同一 Partition 的消息会附带 Sequence Number。而 Broker 端会对<PID, Partition, SeqNumber>做缓存，当具有相同主键的消息提交时，Broker 只会持久化一条。
 
 但是 PID 重启就会变化，所以幂等性无法保证跨分区跨会话的 Exactly Once。跨分区跨会话的 Exactly Once 见下文[Kafka事务](#transaction)。
 
@@ -218,3 +218,4 @@ kafka支持原子操作，在一个事务中的一系列操作，包括生产者
 案例：假设某一个 Topic 本轮批次要发送30条数据，写入到3个Partition中，每个Partition写入10条，当前2个Partition写入成功，后面一个Partition还没写入时，producer挂掉了，当该producer重启时，把这30条数据重新发一次，由于该producer的PID发生了变化，则写入幂等性并不能生效（幂等性的key是<PID, Partition, SeqNumber>），那么就会导致数据重复了。
 
 对于跨分区跨会话的 Exactly Once ：由客户端引入一个全局唯一的 transactionID（用户提供`transactional.id`） ，对于以上案例，即使客户端挂掉了，重启之后，重新取得的 transactionID 仍然是之前那个 transactionID。将 transactionID 与 PID 绑定保存在Broker中，若客户端挂掉了，拿transactionID去Broker取得之前保存的PID，这样重启后的PID就没有发生变化了，也就保证了幂等性，进而实现了跨分区跨会话的 Exactly Once。
+
