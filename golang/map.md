@@ -81,3 +81,50 @@ var m = sync.Map{}
 m.Store(key, n)	// set
 value, _ := m.Load(key) // get
 ```
+
+### sync.Map的原理
+
+```go
+type Map struct {
+    // 加锁作用，保护 dirty 字段
+    mu Mutex
+    // 只读的数据，实际数据类型为 readOnly
+    read atomic.Value
+    // 最新写入的数据
+    dirty map[interface{}]*entry
+    // 计数器，每次需要读 dirty 则 +1
+    misses int
+}
+type readOnly struct {
+    // 内建 map
+    m  map[interface{}]*entry
+    // 表示 dirty 里存在 read 里没有的 key，通过该字段决定是否加锁读 dirty
+    amended bool
+}
+type entry struct {
+    p unsafe.Pointer  // 等同于 *interface{}
+}
+```
+
+`sync.Map`在读和删除两项性能大幅领先使用`sync.Mutex`或`RWMutex`包装的原生map。
+
+sync.Map是如何实现如此高的读取性能的呢？简单说：空间换时间+读写分离+原子操作(快路径)。
+
+read(这个map)好比整个sync.Map的一个**“高速缓存”**，当goroutine从sync.Map中读取数据时，sync.Map会首先查看read这个缓存层是否有用户需要的数据(key是否命中)，如果有(命中)，则通过原子操作将数据读取并返回，这是sync.Map推荐的**快路径(fast path)**，也是为何它读操作性能高的原因，[参考](https://tonybai.com/2020/11/10/understand-sync-map-inside-through-examples/)。
+
+#### 写入数据
+
+新写入的数据存储在dirty的map中
+
+read中的**amended**值由false变为了true，**表示dirty map中存在某些read map还没有的key**。
+
+#### dirty提升(promoted)为read
+
+当Load方法在read map中没有命中（miss)传入的key时，该方法会再次尝试在dirty中继续匹配key；
+
+无论是否匹配到，Load方法都会在锁保护下调用missLocked方法增加misses的计数(+1)；如果增加完计数的misses值大于等于dirty map中的元素个数，则会将dirty中的元素整体提升到read
+
+promoted(dirty -> read)是一个整体的指针原子交换操作，promoted时，sync.Map直接将原dirty指针store给read并将自身置为nil
+
+
+
