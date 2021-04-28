@@ -4,14 +4,16 @@
 * [golang](golang/README.md)
 
     * 基础
-        * [map](golang/map.md)
-        * [slice](golang/slice.md)
-        * [interface](golang/interface.md)
-        * [参数传递](golang/feature.md)
+        * [map](golang/basis/map.md)
+        * [slice](golang/basis/slice.md)
+        * [interface](golang/basis/interface.md)
+        * [参数传递](golang/basis/feature.md)
         
     * [并发](golang/concurrency/README.md)
-        * [锁](golang/lock.md)
-        * [channel](golang/channel.md)
+        * [channel](golang/concurrency/channel.md)
+        * [channel的用法](golang/concurrency/channel_use.md)
+        * [锁](golang/concurrency/lock.md)
+        * [GPM调度模型](golang/concurrency/channel.md)
 
     * 内存
         * [虚拟内存](golang/memory/virtual_memory.md)
