@@ -30,6 +30,7 @@
         * [join](mysql/basis/join.md)
         * [建表](mysql/basis/table.md)
     * [索引](mysql/index/README.md)
+        * [索引原理](mysql/index/principle.md)
         * [查询优化](mysql/index/query_optimization.md)
     * [锁](mysql/lock.md)
     * [主从复制](mysql/replica_set.md)
