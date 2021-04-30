@@ -38,7 +38,7 @@ channel可进行`3种操作`：
 
 对于nil通道的情况，也并非完全遵循上表，**有1个特殊场景**：当`nil`的通道在`select`的某个`case`中时，这个case会阻塞，但不会造成死锁。
 
-![channel用法总结](/Users/zhhnzw/workspace/mygithub/study_summary/src/golang/channel.png)
+![channel用法总结](../../src/golang/channel.png)
 
 发送逻辑要点:
 
