@@ -17,6 +17,35 @@
 | rows          | 为了找到所需的行而需要读取的行数，估算值，不精确。通过把所有rows列值相乘，可粗略估算整个查询会检查的行数。 |
 | Extra         | 非常重要的额外信息，如：<br>Using filesort：无法利用索引完成的排序操作称之为**文件排序**（数据量大时，效率低）<br>Using temporay：在对查询结果排序时使用了临时表（效率很低）。常见于排序 order by 和分组查询 group by。<br/>Using index：表示相应的 select 操作中使用了**覆盖索引**，避免访问了表的数据行（效率高）。 |
 
+#### B+Tree索引
+
+通过B+Tree的查找方式，可以快速定位到查找的叶子节点(或者不存在)。
+
+假设定义了这样的索引: key(last_name, first_name, birthday)，有效的查找方式：
+
+* 全值匹配
+* 匹配最左前缀。如：上述索引只根据 last_name 查找，即只使用第一列
+* 匹配列前缀。如：上述索引只查找所有以J开头的 last_name。也只用到了第一列
+* 匹配范围值。如：查找 last_name 范围在 Allen 和 Barry 之间的人。也只用到了第一列
+* 精确匹配某一列并范围匹配另外一列。第一列全匹配，第二列范围匹配
+* 只访问索引的查询。即**索引覆盖**(Covering Index)。
+
+关于B+Tree索引的限制：
+
+* 如果不是按照索引的最左列开始查找，则无法使用索引。
+* 不能跳过索引中的列。如：上述索引下查找姓为Smith并且在某个特定日期出生的人，如果不指定名(first_name)，则MySQL只能使用索引的第一列。
+* 不能使用索引中范围查找条件右边的列，例如`WHERE name='Smith' AND age > 22 AND position='manager'`, 这个查询只能使用索引的前两列。
+* MySQL在使用不等于（`!=`或者`<>`）的时候无法使用索引会导致全表扫描。
+* `is null`或`is not null`查询语句也无法使用索引。
+* `LIKE`的通配符放在左边（比如`'%abc'`）也无法使用索引（%放右边可以），若业务场景中左边的%就是要写上，可利用**索引覆盖**来避免全表扫描。
+* 在索引列上做的计算（如`WHERE id-1=9 `）、函数调用、自动或手动的类型转换，会导致索引失效而转向全表扫描。对于`VARCHAR`类型的字段，查询时若不加单引号（比如 `WHERE name=2000`），索引会失效，因为MySQL会自动对这个int类型做类型转换换成string。
+
+注：在优化查询性能的时候，可能需要使用相同的列但顺序不同的索引来满足不同类型的查询需求。
+
+#### 索引覆盖
+
+查询的数据列只从索引中就能够取得，不必回表读取数据行。-> 索引叶子节点存储了它们索引的数据 。
+
 ### 查询优化
 
 #### 两表关联优化案例
@@ -83,7 +112,7 @@ EXPLAIN SELECT * FROM class LEFT JOIN book ON class.card = book.card;
 # 给以上查询语句的右表添加索引
 ALTER TABLE book ADD INDEX idx_card(`card`);
 ```
-<img src="../src/mysql/query/demo00_explain_00.png" alt="案例00" style="zoom:50%;" />
+<img src="../../src/mysql/query/demo00_explain_00.png" alt="案例00" style="zoom:50%;" />
 
 ```sql
 # 删除 book 表的索引：
@@ -92,7 +121,7 @@ DROP INDEX idx_card ON book;
 ALTER TABLE class ADD INDEX idx_card(`card`);
 ```
 
-<img src="../src/mysql/query/demo00_explain_01.png" alt="案例01" style="zoom:50%;" />
+<img src="../../src/mysql/query/demo00_explain_01.png" alt="案例01" style="zoom:50%;" />
 
 对比可知，索引加在右表时，Extra列为 `Using index`，即**索引覆盖**，优于把索引加在左表的情况。
 
@@ -143,11 +172,32 @@ ALTER TABLE book ADD INDEX idx_card(`card`);
 ALTER TABLE phone ADD INDEX idx_card(`card`);
 ```
 
-<img src="../src/mysql/query/demo00_explain_02.png" alt="案例02" style="zoom:50%;" />
+<img src="../../src/mysql/query/demo00_explain_02.png" alt="案例02" style="zoom:50%;" />
 
 由上可知，有2个`type`列是`ref`，相应的`Extra`列是`Using index`，即**索引覆盖**，效率高。
 
 结论：多表关联时，分而治之，逐个优化即可。
+
+### 指定字段查询
+
+假设 index(a,b,c)
+
+* `WHERE b='1' and c='1' and a='1'`
+* `WHERE c='1' and b='1' and a='1'`
+* `WHERE a='1' and c='1' and b='1'`
+
+**全值匹配**，以上3种都可以使用索引，因为 mysql 引擎在查询过程中会动态调整查询字段顺序以便利用索引。
+
+* `WHERE b='1' and c='1'`
+* `WHERE c='1' and b='1'`
+
+这2种不能使用索引，因为再怎么调整顺序也不能满足最左前缀原则。
+
+* `WHERE a='1' and c='1'`
+
+`EXPLAIN`的`ref`列值为`const`，`a`字段使用了索引，而`c`字段没有用到索引。
+
+注：`WHERE a='1' and b='1' and c='1'`，`EXPLAIN`的`ref`列值为`const,const,const`，代表3个字段都用到了索引；再观察`key_len`字段，其长度也受使用到的索引字段数量影响。
 
 #### 范围查询
 
@@ -159,7 +209,15 @@ ALTER TABLE phone ADD INDEX idx_card(`card`);
 
 `WHERE a=3 AND b LIKE 'kk%' AND c=4`，通配符在右边，**b列生效，c列也生效**。
 
-`Like '%kk'`和比较运算符`>`的区别：这两者的`EXPLAIN`的`type`列分别是`ref`和`range`，`ref`之后的索引列仍然可生效，而`range`之后的索引列不再生效。
+`Like '%kk'`和比较运算符`>`的区别：这两者的`EXPLAIN`的`type`列分别是`ref`和`range`，`ref`之后的索引列仍然可生效，而`range`之后的索引列不再生效，即**范围之后全失效**。
+
+Q：如果业务上就是要做`%kk%`的查询如何处理？
+
+A：利用覆盖索引，索引扫描比全表扫描的效率高得多。
+
+Q：查询语句中使用OR关键字会导致索引失效吗？
+
+A：如果OR前后的两个条件都分别可以使用索引，那么查询中将使用索引。如果OR前后有一个条件没用上索引，那么将导致索引失效。如：`WHERE a = '1' OR a = '2'`可以使用索引，而`WHERE a = '1' OR b = '2'`将导致索引失效，因为`WHERE b = '2'`是没用上索引的。
 
 #### 排序（ORDER BY）
 
