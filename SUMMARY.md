@@ -2,8 +2,7 @@
 
 * [学习笔记](README.md)
 * [golang](golang/README.md)
-
-    * 基础
+* 基础
         * [map](golang/basis/map.md)
         * [slice](golang/basis/slice.md)
         * [interface](golang/basis/interface.md)
@@ -14,8 +13,8 @@
         * [channel的用法](golang/concurrency/channel_use.md)
         * [锁](golang/concurrency/lock.md)
         * [GPM调度模型](golang/concurrency/channel.md)
-
-    * 内存
+    
+* 内存
         * [虚拟内存](golang/memory/virtual_memory.md)
         * [栈区堆区](golang/memory/stack_heap.md)
         * [垃圾回收](golang/memory/gc.md)
@@ -24,7 +23,7 @@
     * 库
         * [gRPC](golang/library/gRPC.md)
         * [gin](golang/library/gin.md)
-
+    
 * mysql
     * [基础](mysql/basis/README.md)
         * [join](mysql/basis/join.md)
@@ -59,6 +58,6 @@
 * [es](es/README.md) 
   
     * [基础](es/base.md)
-* [协议](protocal/README.md) 
+* [网络](network/README.md) 
     * [HTTP](protocal/http.md)
     * [TCP](protocal/tcp.md)
