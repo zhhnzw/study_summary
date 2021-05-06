@@ -340,11 +340,11 @@ func handle(wg *sync.WaitGroup, a int) chan int {
 
 #### 流水线FAN模型
 
-![FAN-OUT和FAN-IN模式](/Users/zhhnzw/workspace/mygithub/study_summary/src/fan.png)
+![FAN-OUT和FAN-IN模式](../../src/fan.png)
 
 #### 协程池
 
-![协程池](/Users/zhhnzw/workspace/mygithub/study_summary/src/goroutine_pool.png)
+![协程池](../../src/goroutine_pool.png)
 
 ### 合理退出并发协程
 
@@ -380,6 +380,10 @@ Q: 退出程序时, 如何防止channel没有消费完？
 Q: 生产者把消息发送完立刻调用close, 不等消费者消费完，会丢数据吗？
 
 A: 不会丢数据。原理[参考](http://xiaorui.cc/archives/5007)
+
+### 用传统的并发原语还是用Channel？
+
+任务编排用 Channel，共享资源保护用传统并发原语。
 
 ### goroutine的使用注意事项
 
