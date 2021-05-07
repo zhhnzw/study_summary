@@ -2,26 +2,22 @@
 
 * [学习笔记](README.md)
 
-* [golang](golang/README.md)
-
+* [golang](golang/README.md) 
     * 基础
         * [map](golang/basis/map.md)
         * [slice](golang/basis/slice.md)
         * [interface](golang/basis/interface.md)
         * [参数传递](golang/basis/feature.md)
-        
     * [并发](golang/concurrency/README.md)
         * [channel](golang/concurrency/channel.md)
         * [channel的用法](golang/concurrency/channel_use.md)
         * [锁](golang/concurrency/lock.md)
         * [GPM调度模型](golang/concurrency/GPM.md)
-        
     * 内存
         * [虚拟内存](golang/memory/virtual_memory.md)
         * [栈区堆区](golang/memory/stack_heap.md)
         * [垃圾回收](golang/memory/gc.md)
         * [内存泄露](golang/memory/memory_leak.md)
-        
     * 库
         * [gRPC](golang/library/gRPC.md)
         * [gin](golang/library/gin.md)
