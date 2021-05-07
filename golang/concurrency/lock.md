@@ -73,7 +73,7 @@ type Mutex struct {
 
 state 是一个复合型的字段，一个字段包含多个意义，这样可以通过尽可能少的内存来实现互斥锁。这个字段的第一位（最小的一位）来表示这个锁是否被持有，第二位代表是否有唤醒的 goroutine，第三位代表是否是饥饿模式，剩余的位数代表的是等待此锁的 goroutine 数。所以，state 这一个字段被分成了四部分，代表四个数据。
 
-![Mutex 正常模式](../../src/golang/concurrency/mutex_state.jpeg)
+![Mutex 的 state 字段构成](../../src/golang/concurrency/mutex_state.jpeg)
 
 #### 正常模式
 
@@ -85,7 +85,7 @@ A：spin，通过循环不断尝试，尝试检查锁是否被释放，抢锁。
 
 Q：通过原子操作获得锁？
 
-A：CAS（compare-and-swap，或者 compare-and-set） 指令将给定的值和一个内存地址中的值进行比较，如果它们是同一个值，就使用新值替换内存地址中的值，这个操作是原子性的。加锁和解锁都是通过`atomic`包提供的函数原子性的操作`Mutex.state`字段。
+A：加锁和解锁都是通过`atomic`包提供的函数原子性的操作`Mutex.state`字段。[原子操作的原理](#atomic)
 
 但是当锁被释放，第一个等待者被唤醒后并不会直接拥有锁，而是需要和后来者竞争，也就是那些处于自旋阶段，尚未排队等待的goroutine。
 
@@ -175,9 +175,18 @@ only once
 - [`sync.Cond.Signal`](https://github.com/golang/go/blob/71bbffbc48d03b447c73da1f54ac57350fc9b36a/src/sync/cond.go#L64-L67) 方法唤醒的 Goroutine 都是队列最前面、等待最久的 Goroutine；
 - [`sync.Cond.Broadcast`](https://github.com/golang/go/blob/71bbffbc48d03b447c73da1f54ac57350fc9b36a/src/sync/cond.go#L73-L76) 会按照一定顺序广播通知等待的全部 Goroutine；
 
-### 原子操作
+### <span id="atomic">原子操作<span>
 
-代码中的加锁操作因为涉及内核态的上下文切换会比较耗时、代价比较高。针对基本数据类型我们还可以使用原子操作来保证并发安全，因为原子操作是Go语言提供的方法它在用户态就可以完成，因此性能比加锁操作更好。Go语言中原子操作由内置的标准库`sync/atomic`提供。
+原子操作是指不会被操作系统的线程调度机制打断的操作，这种操作一旦开始，就一直运行到结束，中间不会有任何 context switch 。Go语言中原子操作由内置的标准库`sync/atomic`提供，常用于多线程资源竞争的并发处理场景，性能比加锁操作更好。
+
+试想一个多线程操作`i++`的场景，操作系统提供了原子性操作的`CAS（compare-and-set）` 指令，如：`cas(&i, 0, 1)`将某个变量的值从0改成1，这个操作是原子性的，当某个线程成功执行，`i`的值就变成了1，另一个线程再执行该函数就会返回失败，因为通`compare`发现`i`的原值不是期望的值0，那么该`cas`失败的线程接下来如何处理？拿到最新的值1，继续循环执行`cas(&i, 1, 2)`，直到成功，因为`cas`操作失败意味着另一个线程操作成功，那么最终所有线程都会成功执行。
+
+![lock vs atomic](../../src/golang/concurrency/lock_vs_atomic.png)
+
+如上图的场景：
+
+* 使用锁，当一个线程拿到了锁，然后发生了阻塞，那么其他线程只能等它恢复执行并释放锁，这是悲观锁
+* 使用cas循环，当一个线程发生了阻塞，其他线程依然可以通过cas循环把任务向前推进，这是乐观锁的思想（lock free programming，无锁编程，乐观锁不是真正的锁，只是一种并发处理思想）
 
 ### atomic包
 
