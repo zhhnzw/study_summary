@@ -1,6 +1,7 @@
 # Summary
 
 * [学习笔记](README.md)
+
 * [golang](golang/README.md)
     * 基础
         * [map](golang/basis/map.md)
@@ -22,6 +23,7 @@
         * [gin](golang/library/gin.md)
         * [mysql](golang/library/mysql.md)
         * [redis](golang/library/redis.md)
+
 * mysql
     * [基础](mysql/basis/README.md)
         * [join](mysql/basis/join.md)
@@ -32,6 +34,7 @@
     * [锁](mysql/lock.md)
     * [主从复制](mysql/replica_set.md)
     * [其他](mysql/other.md)
+
 * [分布式](distribute/README.md) 
     * [redis](distribute/redis/README.md)
         * [zset](distribute/redis/zset.md)
@@ -50,10 +53,13 @@
         * [操作案例](distribute/kubernetes/demo.md)
     * [微服务](distribute/micro/README.md) 
         * [demo](distribute/micro/demo.md)
+
 * [linux](linux/README.md) 
     * [常用命令](linux/command.md)
+
 * [es](es/README.md) 
     * [基础](es/base.md)
+
 * [网络](network/README.md) 
     * [HTTP](protocal/http.md)
     * [TCP](protocal/tcp.md)
