@@ -175,7 +175,7 @@ only once
 - [`sync.Cond.Signal`](https://github.com/golang/go/blob/71bbffbc48d03b447c73da1f54ac57350fc9b36a/src/sync/cond.go#L64-L67) 方法唤醒的 Goroutine 都是队列最前面、等待最久的 Goroutine；
 - [`sync.Cond.Broadcast`](https://github.com/golang/go/blob/71bbffbc48d03b447c73da1f54ac57350fc9b36a/src/sync/cond.go#L73-L76) 会按照一定顺序广播通知等待的全部 Goroutine；
 
-### <span id="atomic">原子操作<span>
+### <div id="atomic">原子操作<div>
 
 原子操作是指不会被操作系统的线程调度机制打断的操作，这种操作一旦开始，就一直运行到结束，中间不会有任何 context switch 。Go语言中原子操作由内置的标准库`sync/atomic`提供，常用于多线程资源竞争的并发处理场景，性能比加锁操作更好。
 
