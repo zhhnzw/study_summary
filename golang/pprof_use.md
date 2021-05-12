@@ -14,7 +14,7 @@ brew install graphviz
 (pprof) web
 ```
 
-
+<img src="../../src/golang/optimization/pprof_web.png" alt="pprof 可视化 web" />
 
 关于图形的说明： 每个框代表一个函数，理论上框的越大表示占用的CPU资源越多。 方框之间的线条代表函数之间的调用关系。 线条上的数字表示函数调用的次数。 方框中的第一行数字表示当前函数占用CPU的百分比，第二行数字表示当前函数累计占用CPU的百分比。
 
@@ -30,6 +30,8 @@ go tool pprof -alloc_objects http://127.0.0.1:8080/debug/pprof/heap
 ```
 
 ### 火焰图
+
+#### 安装go-torch
 
 uber 开源工具`go-torch`，可以直接读取 golang profiling 数据，并生成一个火焰图的 svg 文件。
 
@@ -61,10 +63,12 @@ https://github.com/wg/wrk 或 https://github.com/adjust/go-wrk
 
 ### 火焰图与压测工具结合使用
 
-使用wrk进行压测:
+以服务型应用为例，[源码见]()
+
+使用wrk对version接口进行压测:
 
 ```bash
-go-wrk -n 50000 http://127.0.0.1:8080/book/list
+go-wrk -n 50000 http://127.0.0.1:8080/version
 ```
 
 在上面压测进行的同时，打开另一个终端执行:
@@ -73,9 +77,16 @@ go-wrk -n 50000 http://127.0.0.1:8080/book/list
 go-torch -u http://127.0.0.1:8080 -t 30
 ```
 
-30秒之后终端会初夏如下提示：`Writing svg to torch.svg`
+30秒之后终端会出现如下提示：
+
+```bash
+INFO[18:01:01] Run pprof command: go tool pprof -raw -seconds 30 http://127.0.0.1:8080/debug/pprof/profile
+INFO[18:01:31] Writing svg to torch.svg
+```
 
 然后我们使用浏览器打开`torch.svg`就能看到如下火焰图了。
+
+<img src="../../src/golang/optimization/pprof_flame.png" alt="火焰图" />
 
 火焰图的y轴表示cpu调用方法的先后，x轴表示在每个采样调用时间内，方法所占的时间百分比，越宽代表占据cpu时间越多。通过火焰图我们就可以更清楚的找出耗时长的函数调用，然后不断的修正代码，重新采样，不断优化。
 
