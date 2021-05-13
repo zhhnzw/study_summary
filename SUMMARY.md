@@ -23,7 +23,11 @@
         * [gin](golang/library/gin.md)
         * [mysql](golang/library/mysql.md)
         * [redis](golang/library/redis.md)
-
+    * [测试与调优](golang/optimization/README.md)
+        * [测试](golang/optimization/test.md)
+        * [pprof](golang/optimization/pprof.md)
+        * [pprof进阶](golang/optimization/pprof_use.md)
+    
 * mysql
     * [基础](mysql/basis/README.md)
         * [join](mysql/basis/join.md)
