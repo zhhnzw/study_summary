@@ -63,7 +63,7 @@ https://github.com/wg/wrk 或 https://github.com/adjust/go-wrk
 
 ### 火焰图与压测工具结合使用
 
-以服务型应用为例，[源码见]()
+以服务型应用为例，[源码见](https://github.com/zhhnzw/demo)
 
 使用wrk对version接口进行压测:
 
@@ -84,7 +84,7 @@ INFO[18:01:01] Run pprof command: go tool pprof -raw -seconds 30 http://127.0.0.
 INFO[18:01:31] Writing svg to torch.svg
 ```
 
-然后我们使用浏览器打开`torch.svg`就能看到如下火焰图了。
+然后使用浏览器打开`torch.svg`就能看到如下火焰图了：
 
 <img src="../../src/golang/optimization/pprof_flame.png" alt="火焰图" />
 
@@ -117,3 +117,107 @@ go test -bench . -cpuprofile=cpu.prof
 ```bash
 go test -bench . -memprofile=./mem.prof
 ```
+
+### 优化案例
+
+[以优化基准测试的lengthOfNonRepeatingSubStr函数为例](test)
+
+1. 执行`go test -bench=Substr -v -cpuprofile=cpu.prof -benchmem`在性能测试的同时取得 CPU profiling 数据文件。
+
+2. 执行`go tool pprof -http=":8081" cpu.prof`，访问`http://localhost:8081`
+
+   <img src="../../src/golang/optimization/example01.png" alt="初始" />
+
+   通过上图可以看出，大部分时间都花在了map相关操作
+
+3. 知道了性能瓶颈所在之后，优化源代码，用`[]int`代替`map`
+
+   ```go
+   func lengthOfNonRepeatingSubStr1(s string) int {
+   	lastOccurred := make([]int, 0xffff)
+   	start := 0
+   	maxLength := 0
+   
+   	for i, ch := range []rune(s) {
+   		if lastI := lastOccurred[ch]; lastI > start {
+   			start = lastI
+   		}
+   		if i-start+1 > maxLength {
+   			maxLength = i - start + 1
+   		}
+   		lastOccurred[ch] = i + 1
+   	}
+   
+   	return maxLength
+   }
+   ```
+
+   再执行测试命令：
+
+   ```bash
+   zhhnzw$ go test -bench=Substr -v -cpuprofile=cpu.prof -benchmem
+   === RUN   TestSubstr
+   --- PASS: TestSubstr (0.00s)
+   goos: darwin
+   goarch: amd64
+   cpu: Intel(R) Core(TM) i7-7920HQ CPU @ 3.10GHz
+   BenchmarkSubstr
+       nonrepeating_test.go:41: len(s) = 491520
+       nonrepeating_test.go:41: len(s) = 491520
+       nonrepeating_test.go:41: len(s) = 491520
+   BenchmarkSubstr-8            601           1968375 ns/op         1179663 B/op          2 allocs/op
+   PASS
+   ```
+
+   可以看到，执行效率从`5152279 ns/op`进步到了`1968375 ns/op`，内存消耗从`655590 B/op`退步到了`1179663 B/op`，再执行`go tool pprof -http=":8081" cpu.prof`，访问`http://localhost:8081`
+
+   <img src="../../src/golang/optimization/example02.png" alt="优化后" />
+
+4. 可以看到，现在CPU性能消耗只剩下了`stringtoslicerune`，涉及到的就是`rune(s)`操作，这里是需要一个`utf-8`的解码操作耗费了CPU计算时间，因为必须要支持中文，这个解码操作是省不了的，所以CPU的优化到此就完成了。
+
+5. 接下来再来看内存，观察到函数每次被调用每次都会创建一个`slice`，这一点可以优化，把`lastOccurred`变量提取到全局变量，在函数内每次都清掉它的值，这样这个`slice`变量就只用初始化一次了
+
+   ```go
+   var lastOccurred = make([]int, 0xffff)
+   func lengthOfNonRepeatingSubStr2(s string) int {
+   
+   	for i,l:=0,len(lastOccurred);i<l;i++ {
+   		lastOccurred[i]=0
+   	}
+   	start := 0
+   	maxLength := 0
+   
+   	chs := []rune(s)
+     // 这也是个优化细节，用 i<len(chs) 会每次调用 len 函数，下面这样写，len 函数只会调用一次
+   	for i,l:=0,len(chs);i<l;i++ {  
+   		if lastI := lastOccurred[chs[i]]; lastI > start {
+   			start = lastI
+   		}
+   		if i-start+1 > maxLength {
+   			maxLength = i - start + 1
+   		}
+   		lastOccurred[chs[i]] = i + 1
+   	}
+     
+   	return maxLength
+   }
+   ```
+
+   再执行测试命令：
+
+   ```bash
+   zhhnzw$ go test -bench=Substr -v -cpuprofile=cpu.prof -benchmem
+   === RUN   TestSubstr
+   --- PASS: TestSubstr (0.00s)
+   goos: darwin
+   goarch: amd64
+   cpu: Intel(R) Core(TM) i7-7920HQ CPU @ 3.10GHz
+   BenchmarkSubstr
+       nonrepeating_test.go:41: len(s) = 491520
+       nonrepeating_test.go:41: len(s) = 491520
+       nonrepeating_test.go:41: len(s) = 491520
+   BenchmarkSubstr-8            620           1927372 ns/op          655362 B/op          1 allocs/op
+   PASS
+   ```
+
+   可以看到，内存消耗进步到了`655362 B/op`，内存分配次数从2次优化到了1次，至此CPU和Memory都优化完毕了。
