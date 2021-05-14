@@ -120,7 +120,7 @@ go test -bench . -memprofile=./mem.prof
 
 ### 优化案例
 
-[以优化基准测试的lengthOfNonRepeatingSubStr函数为例](/golang/optimization/test.md)
+[以优化基准测试的lengthOfNonRepeatingSubStr函数为例](test.md)
 
 1. 执行`go test -bench=Substr -v -cpuprofile=cpu.prof -benchmem`在性能测试的同时取得 CPU profiling 数据文件。
 
