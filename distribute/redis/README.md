@@ -83,8 +83,11 @@ BASE其实是下面三个术语的缩写：
 #### 一主二仆
 
 - Init 
+
 ![img](../../src/redis/replication_demo00.png)
+
 <img src="../../src/redis/replication_demo00.png"/>
+
 - 一个Master两个Slave 
 ![img](../../src/redis/replication_demo01.png)
 - 日志查看
