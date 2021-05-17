@@ -84,19 +84,25 @@ BASE其实是下面三个术语的缩写：
 
 - Init 
 
-![img](../../src/redis/replication_demo00.png)
-
-<img src="../../src/redis/replication_demo00.png"/>
+![](../../src/redis/replication_demo00.png)
 
 - 一个Master两个Slave 
-![img](../../src/redis/replication_demo01.png)
+
+![](../../src/redis/replication_demo01.png)
+
 - 日志查看
   - 主机日志 
-  ![img](../../src/redis/replication_demo02.png)
+
+  ![](../../src/redis/replication_demo02.png)
+
   - 备机日志 
-  ![img](../../src/redis/replication_demo03.png)
+
+  ![](../../src/redis/replication_demo03.png)
+
   - `info replication` 
-  ![img](../../src/redis/replication_demo04.png)
+
+  ![](../../src/redis/replication_demo04.png)
+
 - 主从问题
   1. 切入点问题？slave1、slave2是从头开始复制还是从切入点开始复制?比如从k4进来，那之前的123是否也可以复制？
      - 答：从头开始复制；123也可以复制
