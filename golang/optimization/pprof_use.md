@@ -124,10 +124,11 @@ go test -bench . -memprofile=./mem.prof
 
 1. 执行`go test -bench=Substr -v -cpuprofile=cpu.prof -benchmem`在性能测试的同时取得 CPU profiling 数据文件。
 
-2. 执行`go tool pprof -http=":8081" cpu.prof`，访问`http://localhost:8081`<br/>
-![初始](../../src/golang/optimization/example01.png)<br/>通过上图可以看出，大部分时间都花在了map相关操作
+2. 执行`go tool pprof -http=":8081" cpu.prof`，访问`http://localhost:8081`
 
-3. 知道了性能瓶颈所在之后，优化源代码，用`[]int`代替`map`
+3. ![初始](../../src/golang/optimization/example01.png)<br/>通过上图可以看出，大部分时间都花在了map相关操作
+
+4. 知道了性能瓶颈所在之后，优化源代码，用`[]int`代替`map`
 
    ```go
    func lengthOfNonRepeatingSubStr1(s string) int {
@@ -166,12 +167,13 @@ go test -bench . -memprofile=./mem.prof
    PASS
    ```
 
-   可以看到，执行效率从`5152279 ns/op`进步到了`1968375 ns/op`，内存消耗从`655590 B/op`退步到了`1179663 B/op`，再执行`go tool pprof -http=":8081" cpu.prof`，访问`http://localhost:8081`<br/>
-![优化后](../../src/golang/optimization/example02.png)
+   可以看到，执行效率从`5152279 ns/op`进步到了`1968375 ns/op`，内存消耗从`655590 B/op`退步到了`1179663 B/op`，再执行`go tool pprof -http=":8081" cpu.prof`，访问`http://localhost:8081`
 
-4. 可以看到，现在CPU性能消耗只剩下了`stringtoslicerune`，涉及到的就是`rune(s)`操作，这里是需要一个`utf-8`的解码操作耗费了CPU计算时间，因为必须要支持中文，这个解码操作是省不了的，所以CPU的优化到此就完成了。
+5. ![优化后](../../src/golang/optimization/example02.png)
 
-5. 接下来再来看内存，观察到函数每次被调用每次都会创建一个`slice`，这一点可以优化，把`lastOccurred`变量提取到全局变量，在函数内每次都清掉它的值，这样这个`slice`变量就只用初始化一次了
+5. 可以看到，现在CPU性能消耗只剩下了`stringtoslicerune`，涉及到的就是`rune(s)`操作，这里是需要一个`utf-8`的解码操作耗费了CPU计算时间，因为必须要支持中文，这个解码操作是省不了的，所以CPU的优化到此就完成了。
+
+6. 接下来再来看内存，观察到函数每次被调用每次都会创建一个`slice`，这一点可以优化，把`lastOccurred`变量提取到全局变量，在函数内每次都清掉它的值，这样这个`slice`变量就只用初始化一次了
 
    ```go
    var lastOccurred = make([]int, 0xffff)
