@@ -126,7 +126,7 @@ go test -bench . -memprofile=./mem.prof
 
 2. 执行`go tool pprof -http=":8081" cpu.prof`，访问`http://localhost:8081`
 
-3. ![初始](../../src/golang/optimization/example01.png)<br/>通过上图可以看出，大部分时间都花在了map相关操作
+3. <img src="../../src/golang/optimization/example01.png" alt="初始" /><br/>通过上图可以看出，大部分时间都花在了map相关操作
 
 4. 知道了性能瓶颈所在之后，优化源代码，用`[]int`代替`map`
 
@@ -169,7 +169,7 @@ go test -bench . -memprofile=./mem.prof
 
    可以看到，执行效率从`5152279 ns/op`进步到了`1968375 ns/op`，内存消耗从`655590 B/op`退步到了`1179663 B/op`，再执行`go tool pprof -http=":8081" cpu.prof`，访问`http://localhost:8081`
 
-5. ![优化后](../../src/golang/optimization/example02.png)
+5. <img src="../../src/golang/optimization/example02.png" alt="优化后" />
 
 5. 可以看到，现在CPU性能消耗只剩下了`stringtoslicerune`，涉及到的就是`rune(s)`操作，这里是需要一个`utf-8`的解码操作耗费了CPU计算时间，因为必须要支持中文，这个解码操作是省不了的，所以CPU的优化到此就完成了。
 
