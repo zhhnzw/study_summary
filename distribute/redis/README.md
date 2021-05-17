@@ -93,15 +93,15 @@ BASE其实是下面三个术语的缩写：
 - 日志查看
   - 主机日志 
 
-  ![](../../src/redis/replication_demo02.png)
+![](../../src/redis/replication_demo02.png)
 
   - 备机日志 
 
-  ![](../../src/redis/replication_demo03.png)
+![](../../src/redis/replication_demo03.png)
 
   - `info replication` 
 
-  ![](../../src/redis/replication_demo04.png)
+![](../../src/redis/replication_demo04.png)
 
 - 主从问题
   1. 切入点问题？slave1、slave2是从头开始复制还是从切入点开始复制?比如从k4进来，那之前的123是否也可以复制？
