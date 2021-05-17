@@ -90,16 +90,15 @@ BASE其实是下面三个术语的缩写：
 
 ![](../../src/redis/replication_demo01.png)
 
-- 日志查看
-  - 主机日志 
+- 主机日志查看
 
 ![](../../src/redis/replication_demo02.png)
 
-  - 备机日志 
+- 备机日志 
 
 ![](../../src/redis/replication_demo03.png)
 
-  - `info replication` 
+- `info replication` 
 
 ![](../../src/redis/replication_demo04.png)
 
