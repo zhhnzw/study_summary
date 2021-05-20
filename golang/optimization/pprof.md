@@ -107,9 +107,9 @@ go run main.go -cpu
 
 #### 使用方法
 
-如果应用程序是一直运行的，比如 web 应用，那么可以使用`net/http/pprof`库，它能够在提供 HTTP 服务的同事进行数据采集。
+如果应用程序是一直运行的，比如 web 应用，那么可以使用`net/http/pprof`库，它能够在提供 HTTP 服务的同时进行数据采集。
 
-如果使用了默认的`http.DefaultServeMux`（通常是代码直接使用`http.ListenAndServe(“0.0.0.0:8000”, nil)）`，只需要在你的web server端代码中按如下方式导入`net/http/pprof`
+如果使用了默认的`http.DefaultServeMux`（通常是代码直接使用`http.ListenAndServe(“0.0.0.0:8000”, nil)）`，只需要在web server端代码中按如下方式导入`net/http/pprof`
 
 ```go
 import _ "net/http/pprof"  // 服务型应用用这个包
