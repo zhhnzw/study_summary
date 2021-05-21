@@ -228,21 +228,23 @@ go tool pprof http://localhost:6060/debug/pprof/mutex
 
 ```go
 func (w *Wolf) Howl() {
-   log.Println(w.Name(), "howl")
-   wg := &sync.WaitGroup{}
-   wg.Add(2)
-   m := &sync.Mutex{}
-   go func(m *sync.Mutex) {
-      m.Lock()
-      defer m.Unlock()
-      time.Sleep(time.Second)
-   }(m)
-   go func(m *sync.Mutex) {
-      m.Lock()
-      defer m.Unlock()
-      time.Sleep(time.Second)
-   }(m)
-   wg.Wait()
+	log.Println(w.Name(), "howl")
+	wg := &sync.WaitGroup{}
+	wg.Add(2)
+	m := &sync.Mutex{}
+	go func(m *sync.Mutex, wg *sync.WaitGroup) {
+		defer wg.Done()
+		m.Lock()
+		defer m.Unlock()
+		time.Sleep(time.Second)
+	}(m, wg)
+	go func(m *sync.Mutex, wg *sync.WaitGroup) {
+		defer wg.Done()
+		m.Lock()
+		defer m.Unlock()
+		time.Sleep(time.Second)
+	}(m, wg)
+	wg.Wait()
 }
 ```
 
