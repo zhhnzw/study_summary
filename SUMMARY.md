@@ -65,5 +65,6 @@
     * [基础](es/base.md)
 
 * [网络](network/README.md) 
-    * [HTTP](protocal/http.md)
-    * [TCP](protocal/tcp.md)
+    * [HTTP](network/http.md)
+    * [TCP](network/tcp.md)
+
