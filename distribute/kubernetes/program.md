@@ -2,7 +2,9 @@
 
 从“使用 Kubernetes 部署代码”，到“使用 Kubernetes 编写代码”的蜕变过程，正是从一个 Kubernetes 用户，到 Kubernetes 玩家的晋级之路。
 
-如何理解“Kubernetes 编程范式”，如何为 Kubernetes 添加自定义 API 对象，编写自定义控制器，正是这个晋级过程中的关键点
+如何理解“Kubernetes 编程范式”，如何为 Kubernetes 添加自定义 API 对象，编写自定义控制器，正是这个晋级过程中的关键点。
+
+在互联网级别的大规模集群里，Kubernetes 内置的编排对象，很难做到完全满足所有需求。所以，很多实际的容器化工作，都会要求设计一个自定义的编排对象，实现自定义的控制器模式。
 
 ### 创建一个Network的CRD（Custom Resource Definition）
 
@@ -269,4 +271,172 @@ $ kubectl apply -f example/example-network.yaml
 $ kubectl get network
 $ kubectl describe network example-network
 ```
+
+### 编写自定义控制器（Custom Controller）
+
+“声明式 API”并不像“命令式 API”那样有着明显的执行逻辑。这就使得基于声明式 API 的业务功能实现，往往需要通过控制器模式来“监视”API 对象的变化（比如，创建或者删除 Network），然后以此来决定实际要执行的具体工作。
+
+#### 涉及到的概念和执行机制
+
+所谓的 Informer 通知器，是自定义控制器跟 APIServer 进行数据同步的重要组件，是一个自带缓存和索引机制，可以触发 Handler 的客户端库。这个本地缓存在 Kubernetes 中一般被称为 Store，索引一般被称为 Index。
+
+Informer 使用了 Reflector 包，它是一个可以通过 ListAndWatch 机制获取并监视 API 对象变化的客户端封装。
+
+Reflector 和 Informer 之间，用到了一个“增量先进先出队列”进行协同。而 Informer 与要编写的控制循环之间，则使用了一个工作队列来进行协同。
+
+在实际应用中，除了控制循环之外的所有代码，实际上都是 Kubernetes 为你自动生成的，即：pkg/client/{informers, listers, clientset}里的内容。
+
+而这些自动生成的代码，就为我们提供了一个可靠而高效地获取 API 对象“期望状态”的编程库。
+
+所以，接下来，作为开发者，就只需要关注如何拿到“实际状态”，然后如何拿它去跟“期望状态”做对比，从而决定接下来要做的业务逻辑即可。
+
+### Operator SDK
+
+Operator 是一个感知应用状态的控制器
+
+CoreOS 推出此 SDK 旨在简化复杂的，有状态应用的管理控制
+
+#### 安装
+
+我用的Mac
+
+```bash
+$ brew install operator-sdk
+$ operator-sdk version
+operator-sdk version: "v1.8.0", commit: "d3bd87c6900f70b7df618340e1d63329c7cd651e", kubernetes version: "v1.20.2", go version: "go1.16.4", GOOS: "darwin", GOARCH: "amd64"
+```
+
+#### 搭建 Docker Registry
+
+相当于本地的 dockerhub
+
+```bash
+$ docker run -d -p 5000:5000 --restart always --name registry -v ~/docker-data/docker_registry:/var/lib/registry registry:2
+```
+
+修改Docker服务的配置，配置一个本地域名："insecure-registries": ["mock.com:5000"]
+
+修改 /etc/host，添加一行记录：`127.0.0.1    mock.com`
+
+查看 registry 服务当中存储的镜像：http://mock.com:5000/v2/_catalog
+
+#### 环境准备
+
+```bash
+$ git clone git@github.com:kubernetes/kubernetes.git
+# 把 kubernetes/staging/src/k8s.io 拷贝到 $GOPATH/src 目录下
+$ cp -r kubernetes/staging/src/k8s.io $GOPATH/src
+$ mkdir $GOPATH/src/sigs.k8s.io
+$ cd $GOPATH/src/sigs.k8s.io
+$ git clone git@github.com:kubernetes-sigs/controller-runtime.git
+```
+
+#### 初始化项目
+
+```bash
+$ mkdir operator-demo
+$ cd operator-demo
+$ operator-sdk init --domain mock.com --repo github.com/zhhnzw/operator-demo/v1
+$ operator-sdk create api --group zhhnzw --version v1 --kind=CustomPod --resource=true --controller=true
+```
+
+#### 功能编写
+
+修改`customtype_types.go`文件：
+
+```go
+// 期望的状态
+// CustomTypeSpec defines the desired state of CustomType
+type CustomTypeSpec struct {
+	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
+	// Important: Run "make" to regenerate code after modifying this file
+
+	Replicas int `json:"replicas"`
+}
+
+// 实际的状态
+// CustomTypeStatus defines the observed state of CustomType
+type CustomTypeStatus struct {
+	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
+	// Important: Run "make" to regenerate code after modifying this file
+
+	Replicas int      `json:"replicas"`
+	PodNames []string `json:"podNames"` // 记录已经运行的 Pod 名字
+}
+```
+
+```bash
+# 更新 crd yaml
+$ make manifests
+# 更新 zz_generated.deepcopy.go
+$ make generate
+```
+
+把业务功能写在`customtype_controller.go`文件的`Reconcile`函数即可：
+```go
+// For more details, check Reconcile and its Result here:
+// - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.8.3/pkg/reconcile
+func (r *CustomPodReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+	_ = log.FromContext(ctx)
+
+	// your logic here
+
+	return ctrl.Result{}, nil
+}
+```
+
+#### 功能验证
+
+修改crd实例cr的config/samples/zhhnzw_v1_custompod.yaml：
+
+```yaml
+apiVersion: zhhnzw.mock.com/v1
+kind: CustomPod
+metadata:
+  name: custompod-sample
+spec:
+  replicas: 1
+```
+
+```bash
+# 更新 项目依赖
+$ go mod tidy
+# 更新 crd yaml
+$ make manifests
+# 运行
+$ make install run
+# 查看pod
+$ kubectl get pods
+```
+
+修改 yaml 文件的 replicas 为 3，执行：`kubectl apply -f config/samples/zhhnzw_v1_custompod.yaml`，然后再查看 pod，检查是否如期望的增加了副本数量。
+
+再修改 yaml 文件的 replicas 为 1，执行：`kubectl apply -f config/samples/zhhnzw_v1_custompod.yaml`，然后再查看 pod，检查是否如期望的减少了副本数量。
+
+#### 部署
+
+```bash
+# 同步本地的项目依赖
+$ go mod vendor
+# 登录 docker hub，输入用户名和密码
+$ docker login
+# 构建及推送镜像到 docker hub
+$ make docker-build docker-push IMG="2804696160/operator-demo:v1"
+```
+
+```bash
+# 启动 operator
+$ make deploy
+# 查看执行状态
+$ kubectl get deployment -n operator-demo-system
+# 开启另一个终端，发布上面修改的crd实例
+$ kubectl apply -f config/samples/zhhnzw_v1_customtype.yaml
+$ kubectl get CustomType
+# 查看日志，下面的 pod name 需要换一下
+$ kubectl logs operator-demo-controller-manager-6445b5c58c-f4ccs -n operator-demo-system -c manager
+```
+
+
+
+构建项目，并推送新的镜像：`sudo make docker-build docker-push IMG="2804696160/operator-demo:v1"`，这个`mock.com:5000`就是前三步搭建的本地 Docker Registry 服务。
 
