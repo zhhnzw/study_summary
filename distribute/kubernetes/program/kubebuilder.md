@@ -1,73 +1,257 @@
-## Kubernetes
+## Kubebuilder
 
-容器的本质是进程，容器镜像就是这个系统里的“.exe”安装包，那么这个操作系统就是Kubernetes。
+### GV & GVK & GVR
 
-### 为什么要使用Kubernetes？
+GV: Api Group & Version
 
-运行在大规模集群中的各种任务之间，实际上存在着各种各样的关系。这些关系的处理，才是作业编排和管理系统最困难的地方。
+- API Group 是相关 API 功能的集合
+- 每个 Group 拥有一或多个 Versions
 
-这种任务与任务之间的关系，在我们平常的各种技术场景中随处可见。比如，一个 Web 应用与数据库之间的访问关系，一个负载均衡器和它的后端服务之间的代理关系，一个门户应用与授权组件之间的调用关系。
+GVK: Group Version Kind
 
-如果使用虚拟机，经常会发现很多功能并不相关的应用被一股脑儿地部署在同一台虚拟机中，只是因为它们之间偶尔会互相发起几个 HTTP 请求。还得手动维护很多跟它协作的守护进程（Daemon），用来处理它的日志搜集、灾难恢复、数据备份等辅助工作。
+- 每个 GV 都包含 N 个 api 类型，称之为 Kinds，不同 Version 同一个 Kinds 可能不同
 
-由于容器的本质，只是一个进程而已，那些原先拥挤在同一个虚拟机里的各个应用、组件、守护进程，都可以被分别做成镜像，然后运行在一个个专属的容器中。它们之间互不干涉，拥有各自的资源配额，可以被调度在整个集群里的任何一台机器上。而这，正是一个 PaaS 系统最理想的工作状态，也是所谓“微服务”思想得以落地的先决条件。
+GVR: Group Version Resource
 
-**Kubernetes 项目为用户提供的不仅限于一个容器编排工具，它真正的价值，乃在于提供了一套基于容器构建分布式系统的基础依赖。**
+- Resource 是 Kind 的对象标识，一般来 Kind 和 Resource 是 1:1 的，但是有时候存在 1:n 的关系，不过对于 Operator 来说都是 1:1 的关系
 
-### Kubernetes架构
+举个🌰，我们在 k8s 中的 yaml 文件都有下面这么几行
 
-![Kubernetes架构](../../src/distribute/k8s.png)
+```yaml
+apiVersion: apps/v1 # 这个是 GV，G 是 apps，V 是 v1 
+kind: Deployment    # 这个就是 Kind 
+sepc:               # 加上下放的 spec 就是 Resource了   
+... 
+```
 
-Kubernetes 项目的架构，由 Master 和 Node 两种节点组成，而这两种角色分别对应着控制节点和计算节点。
+根据 GVK K8s 就能找到我们到底要创建什么类型的资源，根据定义的 Spec 创建好资源之后就成为了 Resource，也就是 GVR。GVK/GVR 就是 K8s 资源的坐标，是我们创建/删除/修改/读取资源的基础。
 
-控制节点，即 Master 节点，由三个紧密协作的独立组件组合而成，它们分别是负责 API 服务的 kube-apiserver、负责调度的 kube-scheduler，以及负责容器编排的 kube-controller-manager。整个集群的持久化数据，则由 kube-apiserver 处理后保存在 Etcd 中。
+### 使用kubebuilder
 
-计算节点上最核心的部分是 kubelet 的组件。**kubelet 主要负责同容器运行时（比如 Docker 项目）打交道**。而这个交互所依赖的，是一个称作 CRI（Container Runtime Interface）的远程调用接口，这个接口定义了容器运行时的各项核心操作，比如：启动一个容器需要的所有参数。**kubelet 还通过 gRPC 协议同一个叫作 Device Plugin 的插件进行交互**。这个插件，是 Kubernetes 项目用来管理 GPU 等宿主机物理设备的主要组件，也是基于 Kubernetes 项目进行机器学习训练、高性能作业支持等工作必须关注的功能。**kubelet 的另一个重要功能，则是调用网络插件和存储插件为容器配置网络和持久化存储**。这两个插件与 kubelet 进行交互的接口，分别是 CNI（Container Networking Interface）和 CSI（Container Storage Interface）。
+#### 安装
 
-### 功能
+我用的Mac：
 
-![Kubernetes功能](../../src/distribute/k8s_func.png)
+```bash
+$ brew install kubebuilder
+$ kubebuilder version
+Version: main.version{KubeBuilderVersion:"3.1.0", KubernetesVendor:"unknown", GitCommit:"92e0349ca7334a0a8e5e499da4fb077eb524e94a", BuildDate:"2021-05-29T06:00:59+01:00", GoOs:"darwin", GoArch:"amd64"}
+```
 
-从容器这个最基础的概念出发，首先遇到了容器间“紧密协作”关系的难题，于是就扩展到了 **Pod**；有了 Pod 之后，我们希望能一次启动多个应用的实例，这样就需要 Deployment 这个 Pod 的多实例管理器；而有了这样一组相同的 Pod 后，我们又需要通过一个固定的 IP 地址和端口以负载均衡的方式访问它，于是就有了 Service。
+#### 初始化项目
 
-如果现在两个不同 Pod 之间不仅有“访问关系”，还要求在发起时加上授权信息。Kubernetes 项目提供了一种叫作 Secret 的对象，它其实是一个保存在 Etcd 里的键值对数据。这样，你把 Credential 信息以 Secret 的方式存在 Etcd 里，Kubernetes 就会在你指定的 Pod（比如，Web 应用的 Pod）启动时，自动把 Secret 里的数据以 Volume 的方式挂载到容器里。这样，这个 Web 应用就可以访问数据库了。
+```bash
+$ mkdir kubebuilder-demo
+$ cd kubebuilder-demo/
+# domain 是我们项目的域名，repo 是仓库地址，同时也是 go mod 中的 module
+$ kubebuilder init --domain mock.com --repo github.com/zhhnzw/k8s-demo/kubebuilder-demo
+# 创建 api
+$ kubebuilder create api --group zhhnzw --version v1 --kind=CustomPod --resource=true --controller=true
+```
 
-Kubernetes还提供了基于 Pod 改进后的对象，比如 Job，用来描述一次性运行的 Pod（比如，大数据任务）；再比如 DaemonSet，用来描述每个宿主机上必须且只能运行一个副本的守护进程服务；又比如 CronJob，则用于描述定时任务等等。
+```bash
+$ tree
+.
+├── Dockerfile
+├── Makefile  # 这里定义了很多脚本命令，例如运行测试，开始执行等 
+├── PROJECT   # 这里是 kubebuilder 的一些元数据信息 
+├── README.md
+├── api
+│   └── v1
+│       ├── custompod_types.go    # CRD 定义的 go 文件，需要修改这个文件
+│       ├── groupversion_info.go  # GV 的定义，无需修改 
+│       └── zz_generated.deepcopy.go  # 自动生成的 DeepCopy 方法
+├── bin
+├── config
+│   ├── crd  # 自动生成的 crd 文件，不用修改这里，修改 *_types.go 文件之后执行 make generate 即可
+│   ├── default  # 一些默认配置 
+│   ├── manager  # 在集群中以 pod 的形式启动控制器（部署在集群中时）
+│   ├── prometheus  # 监控指标数据采集配置 
+│   ├── rbac  # 在自己的账户下运行控制器所需的权限
+│   └── samples  # CRD 的实例 CR
+├── controllers
+│   ├── custompod_controller.go  # 在这里实现 controller 的逻辑 
+│   └── suite_test.go  # 这里写测试 
+├── go.mod
+├── go.sum
+├── hack
+└── main.go
+```
 
-Q：对于一个容器来说，它的 IP 地址等信息不是固定的，那么 Web 应用又怎么找到数据库容器的 Pod 呢？
+#### 功能编写
 
-A：Kubernetes 项目的做法是给 Pod 绑定一个 Service 服务，而 Service 服务声明的 IP 地址等信息是“终生不变”的。这个Service 服务的主要作用，就是作为 Pod 的代理入口（Portal），从而代替 Pod 对外暴露一个固定的网络地址。
+修改`customtype_types.go`文件：
 
-### 为什么我们需要Pod？
+```go
+// 期望的状态
+// CustomTypeSpec defines the desired state of CustomType
+type CustomTypeSpec struct {
+	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
+	// Important: Run "make" to regenerate code after modifying this file
 
-假设有A、B、C具有“超亲密关系”的三个进程，它们之间基于 Socket 的通信和文件交换，这三个进程一定要运行在同一台机器上。由于受限于容器的“单进程模型”，这三个模块必须被分别制作成三个不同的容器。如果接下来用 Docker Swarm 对这三个容器往同一台服务器进行调度，可能会发生运行完2个容器后，第3个容器要运行时，这台服务器资源不够了。这就是一个典型的成组调度（gang scheduling）没有被妥善处理的例子。Swarm 这种单容器的工作方式，难以描述真实世界里复杂的应用架构，这也是 Swarm 项目无法成长起来的重要原因之一。
+	Replicas int `json:"replicas"`
+}
 
-事实上，直到现在，仍有很多人把容器跟虚拟机相提并论，他们把容器当做性能更好的虚拟机，喜欢讨论如何把应用从虚拟机无缝地迁移到容器中。
+// 实际的状态
+// CustomTypeStatus defines the observed state of CustomType
+type CustomTypeStatus struct {
+	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
+	// Important: Run "make" to regenerate code after modifying this file
 
-但实际上，无论是从具体的实现原理，还是从使用方法、特性、功能等方面，容器与虚拟机几乎没有任何相似的地方；也不存在一种普遍的方法，能够把虚拟机里的应用无缝迁移到容器中。因为，容器的性能优势，必然伴随着相应缺陷，即：它不能像虚拟机那样，完全模拟本地物理机环境中的部署方法。
+	Replicas int      `json:"replicas"`
+	PodNames []string `json:"podNames"` // 记录已经运行的 Pod 名字
+}
+```
 
-**Pod，而不是容器，才是 Kubernetes 项目中的最小编排单位**
+```bash
+# 更新 项目依赖
+$ go mod tidy
+# 更新 crd yaml
+$ make manifests
+# 更新 zz_generated.deepcopy.go
+$ make generate
+```
 
-可以这么理解 Pod 的本质：Pod 提供的是一种编排思想，Pod实际上是在扮演传统基础设施里“虚拟机”的角色；而容器，则是这个虚拟机里运行的用户程序。
+kubebuilder 已经帮我们实现了 Operator 所需的大部分逻辑，我们只需要在`customtype_controller.go`文件的`Reconcile`函数中实现业务逻辑即可：
 
-### Pod
+```go
+// For more details, check Reconcile and its Result here:
+// - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.8.3/pkg/reconcile
+func (r *CustomPodReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+	_ = log.FromContext(ctx)
 
-Pod 就是 Kubernetes 世界里的“应用”；而一个应用，可以由多个容器组成。
+	// your logic here
 
-Pod 是一组容器的集合，是 k8s 最小部署单元，一个 Pod 内的容器是共享网络的。 
+	return ctrl.Result{}, nil
+}
+```
 
-Pod 的生命周期是短暂的，重启之后就是一个新的 Pod 实例了。
+#### 本地功能验证
 
-### Controller
+修改crd实例cr的config/samples/zhhnzw_v1_custompod.yaml：
 
-确保预期的 Pod 副本数量，无状态和有状态的应用部署，执行一次性和定时任务。
+```yaml
+apiVersion: zhhnzw.mock.com/v1
+kind: CustomPod
+metadata:
+  name: custompod-sample
+spec:
+  replicas: 1
+```
 
-### Service
+```bash
+# 更新 项目依赖
+$ go mod tidy
+# 更新 crd yaml
+$ make manifests
+# 安装 CRD
+$ make install
+# 运行 controller
+$ make run
+# 发布一个crd实例
+$ kubectl apply -f config/samples/zhhnzw_v1_custompod.yaml
+# 查看pod，看是否如期望创建了1个pod
+$ kubectl get pods
+# 修改 sample yaml 文件的 replicas 为 3
+$ kubectl apply -f config/samples/zhhnzw_v1_custompod.yaml
+# 查看pod，看是否如期望的把pod副本数量增加到了3个
+$ kubectl get pods
+# 修改 sample yaml 文件的 replicas 为 1
+$ kubectl apply -f config/samples/zhhnzw_v1_custompod.yaml
+# 查看pod，看是否如期望的把pod副本数量减少到了1个
+$ kubectl get pods
+```
 
-定义一组 Pod 的访问规则。
+#### 部署
 
-由 Controller 创建 Pod 进行部署，通过 Service 对外提供访问服务。
+上一步只是把 controller 在集群外跑起来的，可以把它部署到集群内
 
-### 使用kubeadm搭建k8s集群
+```bash
+# 同步本地的项目依赖
+$ go mod vendor
+# 登录 docker hub，输入用户名和密码
+$ docker login
+# 构建及推送镜像到 docker hub
+$ make docker-build docker-push IMG="2804696160/operator-demo:v1"
+```
 
-mac下直接使用docker桌面软件附带的k8s[参考](https://segmentfault.com/a/1190000038167301)，借助kubeadm工具在多台虚拟机下搭建k8s集群[参考](build.md)。
+```bash
+# 启动 operator
+$ make deploy
+# 指定 namespace 查看执行状态
+$ kubectl get deployment -n operator-demo-system
+# 开启另一个终端，发布上面修改的crd实例
+$ kubectl apply -f config/samples/zhhnzw_v1_customtype.yaml
+# 查看日志，下面的 pod name 需要换一下
+$ kubectl logs operator-demo-controller-manager-6445b5c58c-f4ccs -n operator-demo-system -c manager
+```
+
+#### 可选操作
+
+##### 搭建 Docker Registry
+
+相当于本地的 dockerhub
+
+```bash
+$ docker run -d -p 5000:5000 --restart always --name registry -v ~/docker-data/docker_registry:/var/lib/registry registry:2
+```
+
+修改Docker服务的配置，配置一个本地域名："insecure-registries": ["mock.com:5000"]
+
+修改 /etc/host，添加一行记录：`127.0.0.1    mock.com`
+
+查看 registry 服务当中存储的镜像：http://mock.com:5000/v2/_catalog
+
+在部署推送镜像的时候就可以推送到本地镜像仓库了。
+
+##### 环境准备
+
+```bash
+$ git clone git@github.com:kubernetes/kubernetes.git
+# 把 kubernetes/staging/src/k8s.io 拷贝到 $GOPATH/src 目录下
+$ cp -r kubernetes/staging/src/k8s.io $GOPATH/src
+$ mkdir $GOPATH/src/sigs.k8s.io
+$ cd $GOPATH/src/sigs.k8s.io
+$ git clone git@github.com:kubernetes-sigs/controller-runtime.git
+```
+
+### Operator SDK
+
+Operator 是一个感知应用状态的控制器
+
+CoreOS 推出此 SDK 旨在简化复杂的，有状态应用的管理控制
+
+#### 安装
+
+我用的Mac
+
+```bash
+$ brew install operator-sdk
+$ operator-sdk version
+operator-sdk version: "v1.8.0", commit: "d3bd87c6900f70b7df618340e1d63329c7cd651e", kubernetes version: "v1.20.2", go version: "go1.16.4", GOOS: "darwin", GOARCH: "amd64"
+```
+
+#### 初始化项目
+
+```bash
+$ mkdir operator-demo
+$ cd operator-demo
+$ operator-sdk init --domain mock.com --repo github.com/zhhnzw/operator-demo
+$ operator-sdk create api --group zhhnzw --version v1 --kind=CustomPod --resource=true --controller=true
+```
+
+### 功能编写
+
+生成的代码和 kubebuilder 都一样，省略。
+
+### 部署
+
+大部分操作与 kubebuilder 都一样，只有细节不同，如下：
+
+```bash
+# 启动 operator
+$ make deploy
+# 指定 namespace 查看执行状态
+$ kubectl get deployment -n operator-demo-system
+```
+
