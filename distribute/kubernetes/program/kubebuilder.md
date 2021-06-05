@@ -112,7 +112,7 @@ $ make manifests
 $ make generate
 ```
 
-kubebuilder 已经帮我们实现了 Operator 所需的大部分逻辑，我们只需要在`customtype_controller.go`文件的`Reconcile`函数中实现业务逻辑即可：
+kubebuilder 已经帮我们实现了 Operator 所需的大部分逻辑，我们只需要在`customtype_controller.go`文件的`Reconcile`函数中实现业务逻辑即可，[完整代码](https://github.com/zhhnzw/k8s-demo/tree/main/kubebuilder-demo)：
 
 ```go
 // For more details, check Reconcile and its Result here:
@@ -215,7 +215,7 @@ $ cd $GOPATH/src/sigs.k8s.io
 $ git clone git@github.com:kubernetes-sigs/controller-runtime.git
 ```
 
-### Operator SDK
+### 使用 Operator SDK
 
 Operator 是一个感知应用状态的控制器
 
