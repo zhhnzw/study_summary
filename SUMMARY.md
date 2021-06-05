@@ -55,9 +55,12 @@
         * [Service](distribute/kubernetes/service.md)
         * [持久化存储](distribute/kubernetes/store.md)
         * [操作案例](distribute/kubernetes/demo.md)
+        * [二次开发](distribute/kubernetes/program/README.md)
+            * [自定义资源和控制器](distribute/kubernetes/program/custom.md)
+            * [kubebuilder](distribute/kubernetes/program/kubebuilder.md)
     * [微服务](distribute/micro/README.md) 
         * [demo](distribute/micro/demo.md)
-
+    
 * [linux](linux/README.md) 
     * [常用命令](linux/command.md)
 
