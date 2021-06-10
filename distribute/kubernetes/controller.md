@@ -6,6 +6,16 @@ Deployment 是控制器的一种，控制器要么就是创建、更新一些 Po
 
 ### Deployment
 
+控制器，是用一种对象来管理另一种对象。
+
+![Deployment yaml](../../src/distribute/k8s/controller_yaml.png)
+
+控制器对象本身，负责定义被管理对象的期望状态。比如，Deployment 里的 replicas=2 这个字段。而被控制对象的定义，则来自于一个“模板”。比如，Deployment 里的 template 字段，所有被这个 Deployment 管理的 Pod 实例，都是根据这个 template 字段的内容创建出来的。
+
+![Deployment、ReplicaSet 和 Pod](../../src/distribute/k8s/deployment.png)
+
+Deployment 的设计思想是应用版本和 ReplicaSet 一一对应。Deployment 实际上是一个两层控制器，Deployment 控制 ReplicaSet（版本），ReplicaSet 控制 Pod（副本数）。
+
 Deployment 所管理的 Pod，互相之间没有顺序，也无所谓运行在哪台宿主机上。需要的时候，Deployment 就可以通过 Pod 模板创建新的 Pod；不需要的时候，Deployment 就可以“杀掉”任意一个 Pod。
 
 典型应用场景是：Web服务。
