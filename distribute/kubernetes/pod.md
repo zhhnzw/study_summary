@@ -1,5 +1,5 @@
 ## Pod
-Pod是 Kubernetes 项目里最核心的编排对象，是 Kubernetes 项目中的最小编排单位。
+Pod是 Kubernetes 项目里最核心的编排对象，是 Kubernetes 项目的最小的原子调度单位。
 
 如果有一组容器，它们之间有亲密的耦合关系，要做统一的调度管理，这样的基础设施就是Pod。
 
