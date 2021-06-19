@@ -5,6 +5,8 @@ Pod是 Kubernetes 项目里最核心的编排对象，是 Kubernetes 项目的�
 
 如果把 Pod 看成传统环境里的“机器”、把容器看作是运行在这个“机器”里的“用户程序”，那么很多关于 Pod 对象的设计就非常容易理解了。
 
+哪些属性属于 Pod 对象，哪些属性属于 Container 呢？
+
 比如，**凡是调度、网络、存储，以及安全相关的属性，基本上是 Pod 级别的。**
 
 这些属性的共同特征是，它们描述的是“机器”这个整体，而不是里面运行的“程序”。比如，配置这个“机器”的网卡（即：Pod 的网络定义），配置这个“机器”的磁盘（即：Pod 的存储定义），配置这个“机器”的防火墙（即：Pod 的安全定义）。更不用说，这台“机器”运行在哪个服务器之上（即：Pod 的调度）。
@@ -513,8 +515,119 @@ spec:
 
 Kubernetes 会帮你合并（Merge）这两个 PodPreset 要做的修改。而如果它们要做的修改有冲突的话，这些冲突字段就不会被修改。
 
-### Pod的状态是 Running，但是应用其实已经停止服务？
+### 更多细节
 
-对于包含多个容器的 Pod，只有它里面所有的容器都进入异常状态后，Pod 才会进入 Failed 状态。
+#### 修改 Pod 的 hosts
 
-解决方法：给 Pod 配置健康检查 livenessProbe，livenessProbe 可以定义为发起 HTTP 或者 TCP 。
+```yaml
+apiVersion: v1
+kind: Pod
+...
+spec:
+  hostAliases:
+  - ip: "10.1.2.3"
+    hostnames:
+    - "foo.remote"
+    - "bar.remote"
+...
+```
+
+这个 Pod 启动后，/etc/hosts 文件的内容将如下所示：
+
+```bash
+$ cat /etc/hosts
+# Kubernetes-managed hosts file.
+127.0.0.1 localhost
+...
+10.244.135.10 hostaliases-pod
+10.1.2.3 foo.remote
+10.1.2.3 bar.remote
+```
+
+#### 使 Pod 内共享 PID Namespace
+
+```yaml
+apiVersion: v1
+kind: Pod
+...
+spec:
+  shareProcessNamespace: true
+...
+```
+
+这样，整个 Pod 里的每个容器的进程，对于所有容器来说就都是可见的了，包括 pause 容器。
+
+```bash
+$ kubectl attach -it nginx -c shell
+/ # ps ax
+PID   USER     TIME  COMMAND
+    1 root      0:00 /pause
+    8 root      0:00 nginx: master process nginx -g daemon off;
+   14 101       0:00 nginx: worker process
+   15 root      0:00 sh
+   21 root      0:00 ps ax
+```
+
+#### 使 Pod 共享宿主机的 Namespace
+
+```yaml
+apiVersion: v1
+kind: Pod
+...
+spec:
+  hostNetwork: true
+  hostIPC: true
+  hostPID: true
+...
+```
+
+定义了共享宿主机的 Network、IPC 和 PID Namespace，就意味着，这个 Pod 里的所有容器，会直接使用宿主机的网络、直接与宿主机进行 IPC 通信、看到宿主机里正在运行的所有进程。
+
+#### Container Lifecycle Hooks
+
+它的作用，是在容器状态发生变化时触发一系列“钩子”。
+
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: lifecycle-demo
+spec:
+  containers:
+  - name: lifecycle-demo-container
+    image: nginx
+    lifecycle:
+      postStart:
+        exec:
+          command: ["/bin/sh", "-c", "echo Hello from the postStart handler > /usr/share/message"]
+      preStop:
+        exec:
+          command: ["/usr/sbin/nginx","-s","quit"]
+```
+
+postStart 指的是，在容器启动后，立刻执行一个指定的操作。需要注意的是，虽然是在 Docker 容器 ENTRYPOINT 执行之后执行，但在 postStart 启动时，ENTRYPOINT 有可能还没有结束。
+
+如果 postStart 执行超时或者错误，Kubernetes 会在该 Pod 的 Events 中报出该容器启动失败的错误信息，导致 Pod 也处于失败的状态。
+
+preStop 发生的时机，则是容器被杀死之前（比如，收到了 SIGKILL 信号）。需要注意的是，preStop 操作的执行，是同步的。所以，它会阻塞当前的容器杀死流程，直到这个 Hook 定义操作完成之后，才允许容器被杀死，这跟 postStart 不一样。
+
+在这个例子中，在容器成功启动之后，在 /usr/share/message 里写入了一句“欢迎信息”（即 postStart 定义的操作）。而在这个容器被删除之前，则先调用了 nginx 的退出指令（即 preStop 定义的操作），从而实现了容器的“优雅退出”。
+
+#### Pod 对象的生命周期
+
+Pod 生命周期的变化，主要体现在 Pod API 对象的 Status 部分，pod.status.phase，就是 Pod 的当前状态，它有如下几种可能的情况：
+
+1. Pending。这个状态意味着，Pod 的 YAML 文件已经提交给了 Kubernetes，API 对象已经被创建并保存在 Etcd 当中。但是，这个 Pod 里有些容器因为某种原因而不能被顺利创建。比如，调度不成功。
+2. Running。这个状态下，Pod 已经调度成功，跟一个具体的节点绑定。它包含的容器都已经创建成功，并且至少有一个正在运行中。
+3. Succeeded。这个状态意味着，Pod 里的所有容器都正常运行完毕，并且已经退出了。这种情况在运行一次性任务时最为常见。
+4. Failed。这个状态下，Pod 里至少有一个容器以不正常的状态（非 0 的返回码）退出。这个状态的出现，意味着你得想办法 Debug 这个容器的应用，比如查看 Pod 的 Events 和日志。
+5. Unknown。这是一个异常状态，意味着 Pod 的状态不能持续地被 kubelet 汇报给 kube-apiserver，这很有可能是主从节点（Master 和 Kubelet）间的通信出现了问题。
+
+更进一步地，Pod 对象的 Status 字段，还可以再细分出一组 Conditions。这些细分状态的值包括：PodScheduled、Ready、Initialized，以及 Unschedulable。它们主要用于描述造成当前 Status 的具体原因是什么。
+
+Ready 意味着 Pod 不仅已经正常启动（Running 状态），而且已经可以对外提供服务了。这两者之间（Running 和 Ready）是有区别的。
+
+#### NodeName
+
+一旦 Pod 的这个字段被赋值，Kubernetes 项目就会被认为这个 Pod 已经经过了调度，调度的结果就是赋值的节点名字。所以，这个字段一般由调度器负责设置，但用户也可以设置它来“骗过”调度器，当然这个做法一般是在测试或者调试的时候才会用到。
+
