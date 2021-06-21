@@ -115,7 +115,7 @@ go run main.go -cpu
 import _ "net/http/pprof"  // 服务型应用用这个包
 ```
 
-如果你使用自定义的 Mux，则需要手动注册一些路由规则：
+如果使用自定义的 Mux，则需要手动注册一些路由规则：
 
 ```go
 r.HandleFunc("/debug/pprof/", pprof.Index)

@@ -99,6 +99,13 @@ go-torch -alloc_space http://127.0.0.1:8080/debug/pprof/heap
 go-torch -alloc_objects http://127.0.0.1:8080/debug/pprof/heap
 ```
 
+### pprof与服务型应用
+
+1. 访问：http://127.0.0.1:8080/debug/pprof/
+2. 启动压力测试：`go-wrk -n 50000 http://127.0.0.1:8080/version`
+3. 点击 web 页面的 profile 按钮，收集信息，30 s 后会自动下载 profile 文件
+4. 拿到 profile 文件后：`go tool pprof -http=":8081" profile`
+
 ### pprof与性能测试结合使用
 
 `go test`命令有两个参数和 pprof 相关，它们分别指定生成的 CPU 和 Memory profiling 保存的文件：
