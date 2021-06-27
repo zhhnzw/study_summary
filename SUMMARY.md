@@ -27,6 +27,7 @@
         * [测试](golang/optimization/test.md)
         * [pprof](golang/optimization/pprof.md)
         * [pprof进阶](golang/optimization/pprof_use.md)
+        * [优化实验](golang/optimization/demo.md)
     
 * mysql
     * [基础](mysql/basis/README.md)
@@ -53,19 +54,16 @@
         * [Pod](distribute/kubernetes/pod.md)
         * [Controller](distribute/kubernetes/controller.md)
         * [Service](distribute/kubernetes/service.md)
+        * [dashboard](distribute/kubernetes/dashboard.md)
         * [持久化存储](distribute/kubernetes/store.md)
+        * [编排](distribute/kubernetes/lauout.md)
         * [操作案例](distribute/kubernetes/demo.md)
         * [二次开发](distribute/kubernetes/program/README.md)
             * [自定义资源和控制器](distribute/kubernetes/program/custom.md)
             * [kubebuilder](distribute/kubernetes/program/kubebuilder.md)
-    * [微服务](distribute/micro/README.md) 
-        * [demo](distribute/micro/demo.md)
-    
+
 * [linux](linux/README.md) 
     * [常用命令](linux/command.md)
-
-* [es](es/README.md) 
-    * [基础](es/base.md)
 
 * [网络](network/README.md) 
     * [HTTP](network/http.md)
