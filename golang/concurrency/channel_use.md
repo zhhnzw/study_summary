@@ -76,7 +76,7 @@ if v, ok := <- ch; ok {
 ### 3. 使用select处理多个channel
 
 - 场景：需要对多个通道进行同时处理，但只处理最先发生的channel时
-- 原理：`select`可以同时监控多个通道的情况，只处理未阻塞的case。**当通道为nil时，对应的case永远为阻塞，无论读写。特殊关注：普通情况下，对nil的通道写操作是要panic的**。
+- 原理：`select`可以同时监控多个通道的情况，只处理未阻塞的case。**当通道为nil时，对应的case永远为阻塞，无论读写。**
 - 用法：
 
 ```go
@@ -91,17 +91,19 @@ func (h *Handler) handle(job *Job) {
 }
 ```
 
-### 4. 使用channel的声明控制读写权限
+### 4. 限制channel的读写权限
 
 - 场景：协程对某个通道只读或只写时
-- 目的：A. 使代码更易读、更易维护，B. 防止只读协程对通道进行写数据，但通道已关闭，造成panic。
+- 目的：
+  - 使代码更易读、更易维护。
+  - 防止只读协程对通道进行写数据，但通道已关闭，造成panic。
 - 用法：
   - 如果协程对某个channel只有写操作，则这个channel声明为只写。
   - 如果协程对某个channel只有读操作，则这个channe声明为只读。
 
 ```go
-// 只有generator进行对outCh进行写操作，返回声明
-// <-chan int，可以防止其他协程乱用此通道，造成隐藏bug
+// 只有generator进行对outCh进行写操作，返回只读channel：<-chan int
+// 可以防止其他协程乱用此通道，造成隐藏bug
 func generator(int n) <-chan int {
     outCh := make(chan int)
     go func(){
@@ -256,7 +258,7 @@ func (h *Handler) loop() error {
 ### 9. 使用`chan struct{}`作为信号channel
 
 - 场景：使用channel传递信号，而不是传递数据时
-- 原理：没数据需要传递时，传递空struct
+- 原理：空struct占用内存为0
 - 用法：
 
 ```go
@@ -336,8 +338,6 @@ func handle(wg *sync.WaitGroup, a int) chan int {
 
 > 使用通信来共享内存，而不是通过共享内存来通信
 
-通过[goroutine](/golang/goroutine.md)和[channel](/golang/channel.md)来实现
-
 #### 流水线FAN模型
 
 ![FAN-OUT和FAN-IN模式](../../src/fan.png)
@@ -353,11 +353,11 @@ func handle(wg *sync.WaitGroup, a int) chan int {
 * 使用`for-select`和`,ok`，继续读closed的`channel`，`ok`的值会是`false`, 此时置`channel`为`nil`，`select`不会在`nil`的通道上进行等待
 * 使用退出通道退出。定义一个`stopCh`,发送退出信号，监听方式: `case <-stopCh`，这样只需要发送1条消息，每个worker都会收到信号，进而关闭，[参考资料](https://segmentfault.com/a/1190000017251049)
 
-### FAQ
+### 更多细节
 
-Q: 如何避免向closed channel发送消息？
+#### 如何避免向closed channel发送消息？
 
-A: 说明所编写的程序有设计bug。channel关闭原则:
+说明所编写的程序有设计bug。channel关闭原则:
 
 * 不要在消费端关闭channel
 
@@ -367,24 +367,24 @@ A: 说明所编写的程序有设计bug。channel关闭原则:
 
 * 只要坚持这个原则，就可以确保向一个已经关闭的channel发送数据的情况不可能发生
 
-Q: 退出程序时, 如何防止channel没有消费完？
+#### 退出程序时, 如何防止channel没有消费完？
 
-1. 多个消费者，一个生产者。直接让生产者关闭channel即可。
+1. 多个消费者，一个生产者的场景。直接让生产者关闭channel即可。
 
-2. 多个生产者，一个消费者。由消费者通过channel发送停止生产数据的信号给生产者，生产者在生产数据的同时监听此信号channel，收到信号return即可。值得注意的是，这个例子中生产端和接受端都没有关闭消息数据的channel，channel在没有任何goroutine引用的时候会自行关闭，而不需要显示进行关闭。
+2. 多个生产者，一个消费者的场景。由消费者通过channel发送停止生产数据的信号给生产者，生产者在生产数据的同时监听此信号channel，收到信号return即可。值得注意的是，这个例子中生产端和接受端都没有关闭消息数据的channel，channel在没有任何goroutine引用的时候会自行关闭，而不需要显式关闭。
 
-3. 多个生产者，多个消费者。多个消费者成了信号channel的多个生产者（上一种情况是单一的），因此不可以在信号channel消费端（也即数据channel生产端）关闭此信号channel，这违背了关闭原则，多个消费者发送信号有先后，信号channel被关闭时，其他消费者继续发送信号将引发panic。解决方案是引入一个额外的协调者来关闭附加的退出信号channel。
+3. 多个生产者，多个消费者的场景。多个消费者成了信号channel的多个生产者（上一种情况是单一的），因此不可以在信号channel消费端（也即数据channel生产端）关闭此信号channel，这违背了关闭原则，多个消费者发送信号有先后，信号channel被关闭时，其他消费者继续发送信号将引发panic。解决方案是引入一个额外的协调者来关闭附加的退出信号channel。
 
    设计一个停止生产的信号和一个生产者已经停止的信号，生产者监听停止生产的信号，在return之前发送已经停止的信号，额外的协调者goroutine用于搜集生产者已经停止生产的信号，搜集完整则调用close。
 
-Q: 生产者把消息发送完立刻调用close, 不等消费者消费完，会丢数据吗？
+#### 生产者把消息发送完立刻调用close, 不等消费者消费完，会丢数据吗？
 
-A: 不会丢数据。原理[参考](http://xiaorui.cc/archives/5007)
+不会丢数据。原理[参考](http://xiaorui.cc/archives/5007)
 
-### 用传统的并发原语还是用Channel？
+#### 用传统的并发原语还是用Channel？
 
 任务编排用 Channel，共享资源保护用传统并发原语。
 
-### goroutine的使用注意事项
+#### goroutine的使用注意事项
 
 子goroutine的panic会引起整个进程crash, 所以需要在goroutine函数写上defer recover, 注意recover只在defer语句生效。
