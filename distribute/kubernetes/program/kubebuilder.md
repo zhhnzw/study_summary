@@ -43,7 +43,7 @@ Version: main.version{KubeBuilderVersion:"3.1.0", KubernetesVendor:"unknown", Gi
 ```bash
 $ mkdir kubebuilder-demo
 $ cd kubebuilder-demo/
-# domain 是我们项目的域名，repo 是仓库地址，同时也是 go mod 中的 module
+# domain 是项目的域名，repo 是仓库地址，同时也是 go mod 中的 module
 $ kubebuilder init --domain mock.com --repo github.com/zhhnzw/k8s-demo/kubebuilder-demo
 # 创建 api
 $ kubebuilder create api --group zhhnzw --version v1 --kind=CustomPod --resource=true --controller=true
@@ -112,7 +112,7 @@ $ make manifests
 $ make generate
 ```
 
-kubebuilder 已经帮我们实现了 Operator 所需的大部分逻辑，我们只需要在`customtype_controller.go`文件的`Reconcile`函数中实现业务逻辑即可，[完整代码](https://github.com/zhhnzw/k8s-demo/tree/main/kubebuilder-demo)：
+kubebuilder 已经自动生成了 Operator 所需的大部分逻辑，只需要在`customtype_controller.go`文件的`Reconcile`函数中实现业务逻辑即可，[完整代码](https://github.com/zhhnzw/k8s-demo/tree/main/kubebuilder-demo)：
 
 ```go
 // For more details, check Reconcile and its Result here:
