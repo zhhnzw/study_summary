@@ -190,6 +190,7 @@ At Least Once + 幂等性   = Exactly Once
 
 * 自定义存储offset：
   典型场景：从kafka消费数据出来最终要落地到MySQL时，选用MySQL作为kafka的offset自定义存储工具，这时offset的操作可与业务代码作为整个MySQL事务来操作。
+
 #### 拦截器（interceptor）
 
 实现某个功能的拦截器实例，client添加这个拦截器即可。支持以多个拦截器按序作用于同一条消息形成一个拦截链(interceptor chain)。
