@@ -85,7 +85,7 @@ A：spin，通过循环不断尝试，尝试检查锁是否被释放，抢锁。
 
 Q：通过原子操作获得锁？
 
-A：加锁和解锁都是通过`atomic`包提供的函数原子性的操作`Mutex.state`字段。[原子操作的原理](#atomic)
+A：加锁和解锁都是通过`atomic`包提供的函数原子性的操作`Mutex.state`字段。[原子操作的原理](#yuan-zi-cao-zuo)
 
 但是当锁被释放，第一个等待者被唤醒后并不会直接拥有锁，而是需要和后来者竞争，也就是那些处于自旋阶段，尚未排队等待的goroutine。
 
@@ -175,7 +175,13 @@ only once
 - [`sync.Cond.Signal`](https://github.com/golang/go/blob/71bbffbc48d03b447c73da1f54ac57350fc9b36a/src/sync/cond.go#L64-L67) 方法唤醒的 Goroutine 都是队列最前面、等待最久的 Goroutine；
 - [`sync.Cond.Broadcast`](https://github.com/golang/go/blob/71bbffbc48d03b447c73da1f54ac57350fc9b36a/src/sync/cond.go#L73-L76) 会按照一定顺序广播通知等待的全部 Goroutine；
 
-### <div id="atomic">原子操作<div>
+### SingleFlight
+
+SingleFlight 的作用是在处理多个 goroutine 同时调用同一个函数的时候，只让一个函数去调用这个函数，等到这个 goroutine 返回结果的时候，再把结果返回给这几个同时调用的 goroutine。
+
+原理：SingleFlight 使用互斥锁 Mutex 和 Map 来实现。Mutex 提供并发时的读写保护，Map 用来保存同一个 key 的正在处理（in flight）的请求。
+
+### 原子操作
 
 原子操作是指不会被操作系统的线程调度机制打断的操作，这种操作一旦开始，就一直运行到结束，中间不会有任何 context switch 。Go语言中原子操作由内置的标准库`sync/atomic`提供，常用于多线程资源竞争的并发处理场景，性能比加锁操作更好。
 
